@@ -130,6 +130,26 @@ async def serve_output(filename: str, request: Request):
 # API
 # ---------------------------------------------------------------------------
 
+@app.post("/api/enrich-image")
+async def api_enrich_image(file: UploadFile = File(...)):
+    """Receive an image, return a 16:9 1920×1080 enriched version."""
+    allowed = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    ext = Path(file.filename or "upload").suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported type: {ext}")
+    src = UPLOAD_DIR / f"{uuid.uuid4().hex}{ext}"
+    with open(src, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    dst = OUTPUT_DIR / f"{src.stem}_16x9.jpg"
+    try:
+        from src.image_utils import enrich_to_16x9
+        enrich_to_16x9(src, dst)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return FileResponse(str(dst), media_type="image/jpeg",
+                        headers={"Content-Disposition": f'attachment; filename="{dst.name}"'})
+
+
 @app.get("/api/device-info")
 async def api_device_info():
     try:

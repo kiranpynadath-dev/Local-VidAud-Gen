@@ -548,6 +548,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
       Edit Video
     </button>
+    <button class="mode-tab" onclick="switchMode('enrich',this)">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20"/></svg>
+      Image → 16:9
+    </button>
     <span id="mode-hint"></span>
   </div>
 
@@ -833,6 +837,41 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         </button>
       </div>
       <div class="frames-note">SDEdit: broad style/scene changes. InstructPix2Pix: surgical instruction edits ("replace the car with a bicycle").</div>
+    </div>
+
+    <!-- ── Enrich Image panel ── -->
+    <div id="enrich-panel" style="display:none;padding:20px 0;">
+      <div class="section-header" style="margin-bottom:14px;">
+        <span class="section-title">Image → 16:9 Enrichment</span>
+        <span style="font-size:12px;color:#8888aa;">Converts any image to 1920×1080 with blurred-fill background</span>
+      </div>
+      <label id="enrich-upload-zone" style="
+        display:flex;flex-direction:column;align-items:center;justify-content:center;
+        gap:8px;border:2px dashed #2d2d50;border-radius:12px;padding:32px;
+        cursor:pointer;background:#111128;min-height:140px;transition:border-color .2s;
+      " onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#2d2d50'">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <span id="enrich-upload-label" style="font-size:13px;color:#8888aa;">Click or drag to upload image</span>
+        <input type="file" accept="image/*" style="display:none" onchange="handleEnrichSelect(event)" />
+      </label>
+      <div id="enrich-preview-row" style="display:none;margin-top:16px;gap:16px;align-items:flex-start;">
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#8888aa;margin-bottom:6px;">Original</div>
+          <img id="enrich-preview-orig" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;background:#0a0a16;" />
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:11px;color:#8888aa;margin-bottom:6px;">Result (16:9)</div>
+          <img id="enrich-preview-result" style="width:100%;max-height:200px;object-fit:contain;border-radius:8px;background:#0a0a16;" />
+        </div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px;align-items:center;">
+        <button id="btn-enrich" onclick="startEnrich()" style="
+          background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;border:none;
+          border-radius:10px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;
+        ">✦ Enrich to 16:9</button>
+        <a id="enrich-dl" style="display:none;font-size:13px;color:#a78bfa;text-decoration:none;font-weight:600;">⬇ Download</a>
+        <span id="enrich-status" style="font-size:12px;color:#8888aa;"></span>
+      </div>
     </div>
 
     <div style="height:20px;"></div>
@@ -1276,6 +1315,7 @@ function switchMode(mode, btn) {
   document.getElementById('action-bar').style.display    = isImg ? '' : 'none';
   document.getElementById('t2v-panel').style.display     = isT2V ? 'block' : 'none';
   document.getElementById('edit-panel').style.display    = isEdit ? 'block' : 'none';
+  document.getElementById('enrich-panel').style.display  = mode === 'enrich' ? 'block' : 'none';
 
   const hints = {
     img2video: 'Upload an image and click Generate',
@@ -1389,6 +1429,50 @@ async function startEditGeneration() {
     startPolling(d.job_id, () => { document.getElementById('btn-edit-gen').disabled = false; });
   } catch (err) {
     showToast('Failed to start: ' + err.message, true);
+  }
+}
+
+// ── Image Enrichment ─────────────────────────────────────────
+let _enrichFile = null;
+
+function handleEnrichSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  _enrichFile = file;
+  const url = URL.createObjectURL(file);
+  document.getElementById('enrich-preview-orig').src = url;
+  document.getElementById('enrich-preview-result').src = '';
+  document.getElementById('enrich-preview-row').style.display = 'flex';
+  document.getElementById('enrich-upload-label').textContent = '✓ ' + file.name;
+  document.getElementById('enrich-dl').style.display = 'none';
+  document.getElementById('enrich-status').textContent = '';
+}
+
+async function startEnrich() {
+  if (!_enrichFile) { showToast('Upload an image first.', true); return; }
+  const btn = document.getElementById('btn-enrich');
+  const status = document.getElementById('enrich-status');
+  btn.disabled = true;
+  status.textContent = 'Processing…';
+  try {
+    const fd = new FormData();
+    fd.append('file', _enrichFile);
+    const r = await fetch(`${API}/api/enrich-image`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('enrich-preview-result').src = url;
+    const dl = document.getElementById('enrich-dl');
+    dl.href = url;
+    dl.download = _enrichFile.name.replace(/\.[^.]+$/, '') + '_16x9.jpg';
+    dl.style.display = 'inline';
+    status.textContent = '✓ Done — 1920×1080';
+    showToast('Image enriched to 16:9');
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    showToast('Enrich failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false;
   }
 }
 
