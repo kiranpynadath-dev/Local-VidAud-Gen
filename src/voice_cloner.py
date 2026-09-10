@@ -15,10 +15,12 @@ def _load_xtts(device: str = "cuda"):
         return _xtts
     try:
         from TTS.api import TTS
-    except ImportError:
+    except ImportError as e:
         raise RuntimeError(
-            "Coqui TTS not installed. Run:  pip install TTS  then restart the server."
+            f"Coqui TTS not importable ({e}). Run:  pip install TTS  then restart the server."
         )
+    except Exception as e:
+        raise RuntimeError(f"TTS import error: {e}")
     logger.info("Loading XTTS v2 model (~1.8 GB first run)…")
     _xtts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
     logger.info("XTTS v2 ready")
