@@ -10,18 +10,26 @@ from typing import Optional, Union
 
 logger = logging.getLogger(__name__)
 
-# Default voice IDs from ElevenLabs (public voices)
+# Voice name → ElevenLabs voice ID (used when a name is passed instead of a raw ID)
 VOICE_PRESETS = {
-    "rachel": "21m00Tcm4TlvDq8ikWAM",
-    "clyde": "2EiwWnXFnvU5JabPnv8n",
-    "domi": "AZnzlk1XvdvUeBnXmlld",
-    "bella": "EXAVITQu4vr4xnSDxMaL",
-    "elli": "MF3mGyEYCl7XYWbV9V6O",
-    "josh": "TxGEqnHWrfWFTfGW9XjX",
-    "arnold": "VR6AewLTigWG4xSOukaG",
-    "adam": "pNInz6obpgDQGcFmaJgB",
-    "sam": "yoZ06aMxZJJ28mfd3POQ",
+    "rachel":   "21m00Tcm4TlvDq8ikWAM",
+    "clyde":    "2EiwWnXFnvU5JabPnv8n",
+    "domi":     "AZnzlk1XvdvUeBnXmlld",
+    "bella":    "EXAVITQu4vr4xnSDxMaL",
+    "elli":     "MF3mGyEYCl7XYWbV9V6O",
+    "josh":     "TxGEqnHWrfWFTfGW9XjX",
+    "arnold":   "VR6AewLTigWG4xSOukaG",
+    "adam":     "pNInz6obpgDQGcFmaJgB",
+    "sam":      "yoZ06aMxZJJ28mfd3POQ",
+    # UI voice cards
+    "libby":    "pMsXgVXv3BLzUgSXRplE",
+    "amber":    "jBpfuIE2acCO8z3wKNLl",
+    "liam":     "TX3LPaxmHKxFdv7VOQHJ",
+    "cora":     "XB0fDUnXU5powFXDhCwa",
 }
+
+# All known voice IDs — if the input is already a raw ID (20+ char hex-like string), use directly.
+_KNOWN_IDS = set(VOICE_PRESETS.values())
 
 
 class AudioGenerator:

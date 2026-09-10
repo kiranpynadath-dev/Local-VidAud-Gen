@@ -673,7 +673,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 
 <script>
 // ── Config ───────────────────────────────────────────────────
-const API = 'http://localhost:8000';
+// When opened as file:// use the full server URL; when served by server.py use relative paths.
+const API = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
 
 // ── State ────────────────────────────────────────────────────
 let currentTab = 'speech';
@@ -688,9 +689,31 @@ let selectedVoiceName = 'Rachel';
 
 // ── Boot ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  fetchDeviceInfo();
+  checkServerHealth();
   renderVoiceCards();
 });
+
+async function checkServerHealth() {
+  try {
+    const r = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(3000) });
+    if (r.ok) fetchDeviceInfo();
+  } catch {
+    // Server not up yet — show banner
+    const banner = document.createElement('div');
+    banner.id = 'offline-banner';
+    banner.style.cssText = 'background:#2f1a1a;border-bottom:1px solid #7f1d1d;color:#f87171;font-size:12px;font-weight:600;text-align:center;padding:8px;';
+    banner.innerHTML = '⚠ Server offline — run <code style="background:#1a0a0a;padding:2px 6px;border-radius:4px;">python server.py</code> in the project folder, then refresh.';
+    document.body.prepend(banner);
+    document.getElementById('device-label').textContent = 'Server offline';
+    // Keep retrying silently every 4s
+    const retry = setInterval(async () => {
+      try {
+        const r2 = await fetch(`${API}/api/health`, { signal: AbortSignal.timeout(2000) });
+        if (r2.ok) { clearInterval(retry); banner.remove(); fetchDeviceInfo(); }
+      } catch {}
+    }, 4000);
+  }
+}
 
 // ── Device info ──────────────────────────────────────────────
 async function fetchDeviceInfo() {
@@ -884,7 +907,7 @@ async function startGeneration() {
   const payload = {
     image_filename: uploadedFilename,
     text: text,
-    voice: selectedVoiceName.toLowerCase(),
+    voice: selectedVoiceId,   // pass ElevenLabs voice ID directly
     quality: quality,
     seed: 42,
     loop_audio: true,

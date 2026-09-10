@@ -15,10 +15,15 @@ from __future__ import annotations
 import asyncio
 import os
 import shutil
+import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Optional
+
+# Ensure the project root is on sys.path so `from src.xxx import` works
+# regardless of what directory the user runs the script from.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import uvicorn
 from dotenv import load_dotenv
@@ -62,6 +67,11 @@ async def serve_ui():
     if html_path.exists():
         return HTMLResponse(html_path.read_text(encoding="utf-8"))
     return HTMLResponse("<h2>index.html not found. Place it next to server.py.</h2>", status_code=404)
+
+
+@app.get("/api/health")
+async def api_health():
+    return {"status": "ok"}
 
 
 @app.get("/api/output/{filename}")
@@ -188,6 +198,21 @@ async def _run_generation(job_id: str, req: GenerateRequest, image_path: Path) -
 # ---------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    print("\n  LocalVid Gen — starting server")
-    print("  Open http://localhost:8000 in your browser\n")
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False, log_level="info")
+    import threading, webbrowser, time
+
+    PORT = int(os.environ.get("PORT", 8000))
+    URL  = f"http://localhost:{PORT}"
+
+    print(f"\n{'='*50}")
+    print(f"  LocalVid AI — server starting on {URL}")
+    print(f"  Press Ctrl+C to stop")
+    print(f"{'='*50}\n")
+
+    # Open browser after a short delay so the server is up first
+    def _open_browser():
+        time.sleep(1.8)
+        webbrowser.open(URL)
+
+    threading.Thread(target=_open_browser, daemon=True).start()
+
+    uvicorn.run(app, host="0.0.0.0", port=PORT, reload=False, log_level="info")
