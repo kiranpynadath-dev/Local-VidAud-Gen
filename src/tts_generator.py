@@ -176,14 +176,25 @@ class TTSGenerator:
         edge_voice = _EDGE_VOICES.get(voice_id, "en-US-JennyNeural")
         rate = f"+{int((speed-1)*100)}%" if speed >= 1 else f"{int((speed-1)*100)}%"
 
-        # edge-tts is async — run in event loop
+        # edge-tts is async — handle both script and Jupyter/Colab contexts
         async def _run():
             comm = edge_tts.Communicate(text, voice=edge_voice, rate=rate)
             tmp = output_path.with_suffix(".tmp.mp3")
             await comm.save(str(tmp))
             return tmp
 
-        tmp = asyncio.get_event_loop().run_until_complete(_run())
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Jupyter / Colab — run in a fresh thread with its own event loop
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+                tmp = ex.submit(asyncio.run, _run()).result()
+        else:
+            tmp = asyncio.run(_run())
 
         if output_path.suffix.lower() == ".mp3":
             shutil.move(str(tmp), str(output_path))
