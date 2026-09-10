@@ -376,6 +376,43 @@ async def _run_edit(job_id: str, req: EditVideoRequest, video_path: Path) -> Non
         logger.error("Edit job %s failed: %s", job_id, exc)
 
 
+@app.post("/api/upload-voice-sample")
+async def api_upload_voice_sample(file: UploadFile = File(...)):
+    allowed = {".wav", ".mp3", ".ogg", ".m4a", ".flac"}
+    ext = Path(file.filename or "sample").suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported audio type: {ext}")
+    filename = f"voicesample_{uuid.uuid4().hex}{ext}"
+    dest = UPLOAD_DIR / filename
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"filename": filename}
+
+
+class CloneVoiceRequest(BaseModel):
+    text: str
+    sample_filename: str
+    language: str = "en"
+    speed: float = 1.0
+
+
+@app.post("/api/tts-clone")
+async def api_tts_clone(req: CloneVoiceRequest):
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    sample_path = UPLOAD_DIR / req.sample_filename
+    if not sample_path.exists():
+        raise HTTPException(status_code=400, detail=f"Voice sample not found: {req.sample_filename}")
+    out = OUTPUT_DIR / f"clone_{uuid.uuid4().hex}.mp3"
+    try:
+        from src.voice_cloner import clone_voice
+        clone_voice(req.text, sample_path, out, language=req.language)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return FileResponse(str(out), media_type="audio/mpeg",
+                        headers={"Content-Disposition": 'attachment; filename="cloned_speech.mp3"'})
+
+
 @app.get("/api/job/{job_id}")
 async def api_job_status(job_id: str):
     if job_id not in _jobs:

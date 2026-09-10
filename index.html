@@ -849,12 +849,24 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         <span class="section-title">Text → Audio</span>
         <span style="font-size:12px;color:#8888aa;">Convert any text to speech and download as MP3</span>
       </div>
+      <!-- Mode toggle -->
+      <div style="display:flex;gap:0;margin-bottom:18px;background:#111128;border:1px solid #2d2d50;border-radius:10px;overflow:hidden;width:fit-content;">
+        <button id="t2a-mode-preset" onclick="setT2AMode('preset')" style="
+          background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;border:none;
+          padding:8px 22px;font-size:13px;font-weight:600;cursor:pointer;">Preset Voice</button>
+        <button id="t2a-mode-clone" onclick="setT2AMode('clone')" style="
+          background:transparent;color:#8888aa;border:none;
+          padding:8px 22px;font-size:13px;font-weight:600;cursor:pointer;">Clone Voice</button>
+      </div>
+
       <textarea id="t2a-text" placeholder="Type or paste your script here…" style="
         width:100%;min-height:140px;background:#111128;border:1px solid #2d2d50;
         border-radius:10px;padding:14px;color:#e2e2f0;font-size:14px;resize:vertical;
         font-family:inherit;outline:none;line-height:1.6;
       "></textarea>
-      <div style="display:flex;gap:12px;margin-top:14px;align-items:center;flex-wrap:wrap;">
+
+      <!-- Preset voice controls -->
+      <div id="t2a-preset-section" style="display:flex;gap:12px;margin-top:14px;align-items:center;flex-wrap:wrap;">
         <select id="t2a-voice" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;min-width:140px;"></select>
         <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8888aa;">
           Speed
@@ -867,6 +879,43 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           border-radius:10px;padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;
         ">▶ Generate</button>
       </div>
+
+      <!-- Clone voice controls -->
+      <div id="t2a-clone-section" style="display:none;margin-top:14px;">
+        <label style="font-size:13px;color:#8888aa;display:block;margin-bottom:8px;">Upload reference voice sample (6–10 seconds, WAV/MP3)</label>
+        <label id="t2a-clone-upload-zone" style="
+          display:flex;flex-direction:column;align-items:center;justify-content:center;
+          gap:8px;border:2px dashed #2d2d50;border-radius:12px;padding:24px;
+          cursor:pointer;background:#111128;transition:border-color .2s;
+        " onmouseover="this.style.borderColor='#7c3aed'" onmouseout="this.style.borderColor='#2d2d50'">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="1.5">
+            <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="23"/>
+            <line x1="8" y1="23" x2="16" y2="23"/>
+          </svg>
+          <span id="t2a-clone-label" style="font-size:13px;color:#8888aa;">Click to upload audio sample</span>
+          <input id="t2a-clone-input" type="file" accept="audio/*" style="display:none" onchange="handleCloneSampleSelect(event)" />
+        </label>
+        <div style="display:flex;gap:12px;margin-top:12px;align-items:center;">
+          <select id="t2a-clone-lang" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:8px;padding:8px 14px;font-size:13px;">
+            <option value="en">English</option>
+            <option value="es">Spanish</option>
+            <option value="fr">French</option>
+            <option value="de">German</option>
+            <option value="it">Italian</option>
+            <option value="pt">Portuguese</option>
+            <option value="zh">Chinese</option>
+            <option value="ja">Japanese</option>
+            <option value="ko">Korean</option>
+          </select>
+          <button id="btn-t2a-clone" onclick="startT2AClone()" style="
+            background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;border:none;
+            border-radius:10px;padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;
+          ">▶ Clone &amp; Generate</button>
+        </div>
+      </div>
+
       <div id="t2a-result" style="display:none;margin-top:20px;background:#111128;border:1px solid #2d2d50;border-radius:12px;padding:18px;">
         <audio id="t2a-player" controls style="width:100%;margin-bottom:12px;accent-color:#7c3aed;"></audio>
         <div style="display:flex;gap:12px;align-items:center;">
@@ -1573,6 +1622,73 @@ async function startT2A() {
     showToast('Failed: ' + err.message, true);
   } finally {
     btn.disabled = false;
+  }
+}
+
+// ── Text → Audio: mode toggle ────────────────────────────────
+let _t2aMode = 'preset';
+let _cloneSampleFilename = null;
+
+function setT2AMode(mode) {
+  _t2aMode = mode;
+  const isClone = mode === 'clone';
+  document.getElementById('t2a-preset-section').style.display = isClone ? 'none' : 'flex';
+  document.getElementById('t2a-clone-section').style.display = isClone ? 'block' : 'none';
+  document.getElementById('t2a-mode-preset').style.background = isClone ? 'transparent' : 'linear-gradient(90deg,#7c3aed,#a855f7)';
+  document.getElementById('t2a-mode-preset').style.color = isClone ? '#8888aa' : '#fff';
+  document.getElementById('t2a-mode-clone').style.background = isClone ? 'linear-gradient(90deg,#7c3aed,#a855f7)' : 'transparent';
+  document.getElementById('t2a-mode-clone').style.color = isClone ? '#fff' : '#8888aa';
+}
+
+async function handleCloneSampleSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  document.getElementById('t2a-clone-label').textContent = 'Uploading…';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/upload-voice-sample`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    _cloneSampleFilename = d.filename;
+    document.getElementById('t2a-clone-label').textContent = `✓ ${file.name}`;
+    document.getElementById('t2a-clone-upload-zone').style.borderColor = '#7c3aed';
+    showToast('Voice sample uploaded');
+  } catch (err) {
+    document.getElementById('t2a-clone-label').textContent = 'Upload failed — try again';
+    showToast('Upload failed: ' + err.message, true);
+  }
+}
+
+async function startT2AClone() {
+  const text = document.getElementById('t2a-text').value.trim();
+  if (!text) { showToast('Enter some text first.', true); return; }
+  if (!_cloneSampleFilename) { showToast('Upload a voice sample first.', true); return; }
+  const lang = document.getElementById('t2a-clone-lang').value;
+  const btn = document.getElementById('btn-t2a-clone');
+  const status = document.getElementById('t2a-status');
+  btn.disabled = true; btn.textContent = '⏳ Generating…'; status.textContent = '';
+  document.getElementById('t2a-result').style.display = 'none';
+  try {
+    const r = await fetch(`${API}/api/tts-clone`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, sample_filename: _cloneSampleFilename, language: lang }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('t2a-player').src = url;
+    const dl = document.getElementById('t2a-dl');
+    dl.href = url; dl.download = 'cloned_speech.mp3';
+    document.getElementById('t2a-result').style.display = 'block';
+    document.getElementById('t2a-player').play();
+    status.textContent = '✓ Ready';
+    showToast('Cloned audio ready');
+  } catch (err) {
+    showToast('Clone failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = '▶ Clone & Generate';
   }
 }
 
