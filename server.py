@@ -59,6 +59,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 # In-memory job store  {job_id: {...}}
 _jobs: dict[str, dict] = {}
 _executor = ThreadPoolExecutor(max_workers=1)  # one GPU job at a time
+_current_gen = None  # global generator ref — unloaded before each new job
 
 # ---------------------------------------------------------------------------
 # Serve UI
@@ -175,19 +176,28 @@ async def _run_t2v(job_id: str, req: TextToVideoRequest) -> None:
     _jobs[job_id]["log"].append("Starting text-to-video generation …")
 
     def _gen():
+        global _current_gen
+        if _current_gen is not None:
+            try: _current_gen.unload()
+            except Exception: pass
+            _current_gen = None
         from src.generator import VideoAudioGenerator
         gen = VideoAudioGenerator(quality=req.quality, output_dir=str(OUTPUT_DIR))
-        result = gen.generate_from_text(
-            prompt=req.prompt,
-            negative_prompt=req.negative_prompt,
-            text=req.text or None,
-            voice=req.voice,
-            speed=req.speed,
-            seed=req.seed,
-            loop_audio=req.loop_audio,
-            filename_prefix=job_id,
-        )
-        gen.unload()
+        _current_gen = gen
+        try:
+            result = gen.generate_from_text(
+                prompt=req.prompt,
+                negative_prompt=req.negative_prompt,
+                text=req.text or None,
+                voice=req.voice,
+                speed=req.speed,
+                seed=req.seed,
+                loop_audio=req.loop_audio,
+                filename_prefix=job_id,
+            )
+        finally:
+            gen.unload()
+            _current_gen = None
         return result
 
     loop = asyncio.get_event_loop()
@@ -249,20 +259,29 @@ async def _run_edit(job_id: str, req: EditVideoRequest, video_path: Path) -> Non
     _jobs[job_id]["log"].append(f"Editing video (mode={req.mode}) …")
 
     def _edit():
+        global _current_gen
+        if _current_gen is not None:
+            try: _current_gen.unload()
+            except Exception: pass
+            _current_gen = None
         from src.generator import VideoAudioGenerator
         gen = VideoAudioGenerator(quality="medium", output_dir=str(OUTPUT_DIR))
-        out = gen.edit_video(
-            video_path=video_path,
-            prompt=req.prompt,
-            mode=req.mode,
-            negative_prompt=req.negative_prompt,
-            strength=req.strength,
-            steps=req.steps,
-            max_frames=req.max_frames,
-            seed=req.seed,
-            filename_prefix=job_id,
-        )
-        gen.unload()
+        _current_gen = gen
+        try:
+            out = gen.edit_video(
+                video_path=video_path,
+                prompt=req.prompt,
+                mode=req.mode,
+                negative_prompt=req.negative_prompt,
+                strength=req.strength,
+                steps=req.steps,
+                max_frames=req.max_frames,
+                seed=req.seed,
+                filename_prefix=job_id,
+            )
+        finally:
+            gen.unload()
+            _current_gen = None
         return out
 
     loop = asyncio.get_event_loop()
@@ -294,22 +313,31 @@ async def _run_generation(job_id: str, req: GenerateRequest, image_path: Path) -
     _jobs[job_id]["log"].append("Starting generation …")
 
     def _generate():
+        global _current_gen
+        if _current_gen is not None:
+            try: _current_gen.unload()
+            except Exception: pass
+            _current_gen = None
         from src.generator import VideoAudioGenerator
         gen = VideoAudioGenerator(
             quality=req.quality,
             output_dir=str(OUTPUT_DIR),
             log_level="INFO",
         )
-        result = gen.generate(
-            image=image_path,
-            text=req.text if req.text else None,
-            voice=req.voice,
-            speed=req.speed,
-            seed=req.seed,
-            loop_audio=req.loop_audio,
-            filename_prefix=job_id,
-        )
-        gen.unload()
+        _current_gen = gen
+        try:
+            result = gen.generate(
+                image=image_path,
+                text=req.text if req.text else None,
+                voice=req.voice,
+                speed=req.speed,
+                seed=req.seed,
+                loop_audio=req.loop_audio,
+                filename_prefix=job_id,
+            )
+        finally:
+            gen.unload()
+            _current_gen = None
         return result
 
     loop = asyncio.get_event_loop()
