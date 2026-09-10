@@ -548,6 +548,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
       Edit Video
     </button>
+    <button class="mode-tab" onclick="switchMode('text2audio',this)">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Text → Audio
+    </button>
     <button class="mode-tab" onclick="switchMode('enrich',this)">
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 9h20M2 15h20"/></svg>
       Image → 16:9
@@ -837,6 +841,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         </button>
       </div>
       <div class="frames-note">SDEdit: broad style/scene changes. InstructPix2Pix: surgical instruction edits ("replace the car with a bicycle").</div>
+    </div>
+
+    <!-- ── Text → Audio mode panel ── -->
+    <div id="text2audio-panel" style="display:none;padding:20px 0;max-width:720px;">
+      <div class="section-header" style="margin-bottom:14px;">
+        <span class="section-title">Text → Audio</span>
+        <span style="font-size:12px;color:#8888aa;">Convert any text to speech and download as MP3</span>
+      </div>
+      <textarea id="t2a-text" placeholder="Type or paste your script here…" style="
+        width:100%;min-height:140px;background:#111128;border:1px solid #2d2d50;
+        border-radius:10px;padding:14px;color:#e2e2f0;font-size:14px;resize:vertical;
+        font-family:inherit;outline:none;line-height:1.6;
+      "></textarea>
+      <div style="display:flex;gap:12px;margin-top:14px;align-items:center;flex-wrap:wrap;">
+        <select id="t2a-voice" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:8px;padding:8px 14px;font-size:13px;flex:1;min-width:140px;"></select>
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8888aa;">
+          Speed
+          <button onclick="changeT2ASpeed(-0.1)" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:6px;padding:4px 10px;cursor:pointer;">−</button>
+          <span id="t2a-speed-val">1.0x</span>
+          <button onclick="changeT2ASpeed(0.1)" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:6px;padding:4px 10px;cursor:pointer;">＋</button>
+        </div>
+        <button id="btn-t2a" onclick="startT2A()" style="
+          background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;border:none;
+          border-radius:10px;padding:10px 28px;font-size:13px;font-weight:700;cursor:pointer;
+        ">▶ Generate</button>
+      </div>
+      <div id="t2a-result" style="display:none;margin-top:20px;background:#111128;border:1px solid #2d2d50;border-radius:12px;padding:18px;">
+        <audio id="t2a-player" controls style="width:100%;margin-bottom:12px;accent-color:#7c3aed;"></audio>
+        <div style="display:flex;gap:12px;align-items:center;">
+          <a id="t2a-dl" style="font-size:13px;color:#a78bfa;text-decoration:none;font-weight:600;padding:8px 18px;border:1px solid #3b2f6b;border-radius:8px;">⬇ Download MP3</a>
+          <span id="t2a-status" style="font-size:12px;color:#6666aa;"></span>
+        </div>
+      </div>
     </div>
 
     <!-- ── Text to Audio panel ── -->
@@ -1370,7 +1407,9 @@ function switchMode(mode, btn) {
   document.getElementById('action-bar').style.display    = isImg ? '' : 'none';
   document.getElementById('t2v-panel').style.display     = isT2V ? 'block' : 'none';
   document.getElementById('edit-panel').style.display    = isEdit ? 'block' : 'none';
-  document.getElementById('enrich-panel').style.display  = mode === 'enrich' ? 'block' : 'none';
+  document.getElementById('text2audio-panel').style.display = mode === 'text2audio' ? 'block' : 'none';
+  document.getElementById('enrich-panel').style.display     = mode === 'enrich'     ? 'block' : 'none';
+  if (mode === 'text2audio') populateT2AVoiceSel();
 
   const hints = {
     img2video: 'Upload an image and click Generate',
@@ -1484,6 +1523,56 @@ async function startEditGeneration() {
     startPolling(d.job_id, () => { document.getElementById('btn-edit-gen').disabled = false; });
   } catch (err) {
     showToast('Failed to start: ' + err.message, true);
+  }
+}
+
+// ── Text → Audio tab ─────────────────────────────────────────
+let _t2aSpeed = 1.0;
+
+function populateT2AVoiceSel() {
+  const sel = document.getElementById('t2a-voice');
+  if (!sel || sel.options.length > 0) return;
+  VOICES.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v.id; o.textContent = `${v.name} — ${v.lang}`;
+    if (v.id === 'heart') o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+function changeT2ASpeed(d) {
+  _t2aSpeed = Math.max(0.5, Math.min(2.0, Math.round((_t2aSpeed + d) * 10) / 10));
+  document.getElementById('t2a-speed-val').textContent = _t2aSpeed.toFixed(1) + 'x';
+}
+
+async function startT2A() {
+  const text = document.getElementById('t2a-text').value.trim();
+  if (!text) { showToast('Enter some text first.', true); return; }
+  const voice = document.getElementById('t2a-voice').value;
+  const btn = document.getElementById('btn-t2a');
+  const status = document.getElementById('t2a-status');
+  btn.disabled = true; status.textContent = '';
+  document.getElementById('t2a-result').style.display = 'none';
+  try {
+    const r = await fetch(`${API}/api/tts`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, voice, speed: _t2aSpeed }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    document.getElementById('t2a-player').src = url;
+    const dl = document.getElementById('t2a-dl');
+    dl.href = url; dl.download = 'speech.mp3';
+    document.getElementById('t2a-result').style.display = 'block';
+    document.getElementById('t2a-player').play();
+    status.textContent = '✓ Ready';
+    showToast('Audio ready');
+  } catch (err) {
+    showToast('Failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false;
   }
 }
 
