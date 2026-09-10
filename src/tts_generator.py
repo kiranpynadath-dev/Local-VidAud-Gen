@@ -192,7 +192,7 @@ class TTSGenerator:
             # Jupyter / Colab — run in a fresh thread with its own event loop
             import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
-                tmp = ex.submit(asyncio.run, _run()).result()
+                tmp = ex.submit(lambda: asyncio.run(_run())).result()
         else:
             tmp = asyncio.run(_run())
 
