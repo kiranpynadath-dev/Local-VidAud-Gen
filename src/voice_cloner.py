@@ -13,7 +13,12 @@ def _load_xtts(device: str = "cuda"):
     global _xtts
     if _xtts is not None:
         return _xtts
-    from TTS.api import TTS
+    try:
+        from TTS.api import TTS
+    except ImportError:
+        raise RuntimeError(
+            "Coqui TTS not installed. Run:  pip install TTS  then restart the server."
+        )
     logger.info("Loading XTTS v2 model (~1.8 GB first run)…")
     _xtts = TTS("tts_models/multilingual/multi-dataset/xtts_v2").to(device)
     logger.info("XTTS v2 ready")
