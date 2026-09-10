@@ -839,6 +839,38 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <div class="frames-note">SDEdit: broad style/scene changes. InstructPix2Pix: surgical instruction edits ("replace the car with a bicycle").</div>
     </div>
 
+    <!-- ── Text to Audio panel ── -->
+    <div id="tts-panel" style="display:none;padding:20px 0;">
+      <div class="section-header" style="margin-bottom:14px;">
+        <span class="section-title">Text → Audio</span>
+        <span style="font-size:12px;color:#8888aa;">Convert any text to speech and download as MP3</span>
+      </div>
+      <textarea id="tts-text" placeholder="Type your script here…" style="
+        width:100%;min-height:120px;background:#111128;border:1px solid #2d2d50;
+        border-radius:10px;padding:12px;color:#e2e2f0;font-size:14px;resize:vertical;
+        font-family:inherit;outline:none;
+      "></textarea>
+      <div style="display:flex;gap:12px;margin-top:12px;align-items:center;flex-wrap:wrap;">
+        <select id="tts-voice-sel" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:8px;padding:8px 12px;font-size:13px;">
+        </select>
+        <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:#8888aa;">
+          Speed
+          <button onclick="changeTTSSpeed(-0.1)" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:6px;padding:4px 10px;cursor:pointer;">−</button>
+          <span id="tts-speed-val">1.0x</span>
+          <button onclick="changeTTSSpeed(0.1)" style="background:#1a1a30;border:1px solid #2d2d50;color:#e2e2f0;border-radius:6px;padding:4px 10px;cursor:pointer;">＋</button>
+        </div>
+        <button id="btn-tts-gen" onclick="startTTSOnly()" style="
+          background:linear-gradient(90deg,#7c3aed,#a855f7);color:#fff;border:none;
+          border-radius:10px;padding:10px 24px;font-size:13px;font-weight:700;cursor:pointer;
+        ">▶ Generate Audio</button>
+        <span id="tts-status" style="font-size:12px;color:#8888aa;"></span>
+      </div>
+      <div id="tts-result" style="display:none;margin-top:16px;background:#111128;border:1px solid #2d2d50;border-radius:10px;padding:16px;">
+        <audio id="tts-audio-player" controls style="width:100%;margin-bottom:10px;"></audio>
+        <a id="tts-dl" style="font-size:13px;color:#a78bfa;text-decoration:none;font-weight:600;">⬇ Download MP3</a>
+      </div>
+    </div>
+
     <!-- ── Enrich Image panel ── -->
     <div id="enrich-panel" style="display:none;padding:20px 0;">
       <div class="section-header" style="margin-bottom:14px;">
@@ -1026,6 +1058,7 @@ function renderVoiceCards() {
       <div class="vc-wave">${bars}</div>
       <div class="vc-tags">${v.tags.map(t=>`<span class="vc-tag">${t}</span>`).join('')}</div>
     `;
+    card.querySelector('.vc-play').onclick = (e) => { e.stopPropagation(); previewVoice(v.id, v.name); };
     card.onclick = () => selectVoice(v, card);
     grid.appendChild(card);
   });
@@ -1037,6 +1070,28 @@ function selectVoice(voice, el) {
   selectedVoiceId = voice.id;
   selectedVoiceName = voice.name;
   document.getElementById('lang-label').textContent = `English(US) - ${voice.name}`;
+}
+
+// ── Voice preview ─────────────────────────────────────────────
+let _previewAudio = null;
+async function previewVoice(voiceId, voiceName) {
+  showToast(`Loading ${voiceName} preview…`);
+  try {
+    const r = await fetch(`${API}/api/tts`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text: `Hi, I'm ${voiceName}. How can I help you today?`, voice: voiceId, speed: 1.0 }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    if (_previewAudio) { _previewAudio.pause(); _previewAudio = null; }
+    _previewAudio = new Audio(url);
+    _previewAudio.play();
+    showToast(`Playing ${voiceName}`);
+  } catch (err) {
+    showToast('Preview failed: ' + err.message, true);
+  }
 }
 
 // ── Tab switching ────────────────────────────────────────────
@@ -1432,6 +1487,56 @@ async function startEditGeneration() {
   }
 }
 
+// ── Text-to-Audio (standalone) ───────────────────────────────
+let _ttsSpeed = 1.0;
+function changeTTSSpeed(d) {
+  _ttsSpeed = Math.max(0.5, Math.min(2.0, Math.round((_ttsSpeed + d) * 10) / 10));
+  document.getElementById('tts-speed-val').textContent = _ttsSpeed.toFixed(1) + 'x';
+}
+
+function populateTTSVoiceSel() {
+  const sel = document.getElementById('tts-voice-sel');
+  if (!sel || sel.options.length > 0) return;
+  VOICES.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v.id; o.textContent = v.name;
+    if (v.id === 'heart') o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+async function startTTSOnly() {
+  const text = document.getElementById('tts-text').value.trim();
+  if (!text) { showToast('Enter some text first.', true); return; }
+  const voice = document.getElementById('tts-voice-sel').value;
+  const btn = document.getElementById('btn-tts-gen');
+  const status = document.getElementById('tts-status');
+  btn.disabled = true; status.textContent = 'Generating…';
+  try {
+    const r = await fetch(`${API}/api/tts`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ text, voice, speed: _ttsSpeed }),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const player = document.getElementById('tts-audio-player');
+    player.src = url;
+    const dl = document.getElementById('tts-dl');
+    dl.href = url; dl.download = 'speech.mp3';
+    document.getElementById('tts-result').style.display = 'block';
+    player.play();
+    status.textContent = '✓ Done';
+    showToast('Audio ready');
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+    showToast('TTS failed: ' + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ── Image Enrichment ─────────────────────────────────────────
 let _enrichFile = null;
 
@@ -1477,13 +1582,26 @@ async function startEnrich() {
 }
 
 // Sidebar navigation
-const _FUNCTIONAL_PAGES = ['home'];
+const _FUNCTIONAL_PAGES = ['home', 'clonevoice'];
 document.querySelectorAll('.nav-item[data-page]').forEach(item => {
   item.addEventListener('click', () => {
     const page = item.dataset.page;
-    if (_FUNCTIONAL_PAGES.includes(page)) {
+    if (page === 'clonevoice') {
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       item.classList.add('active');
+      // Show TTS panel, hide video content
+      document.getElementById('content').style.display = 'none';
+      document.getElementById('action-bar').style.display = 'none';
+      document.getElementById('mode-bar').style.display = 'none';
+      document.getElementById('tts-panel').style.display = 'block';
+      populateTTSVoiceSel();
+    } else if (page === 'home') {
+      document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+      document.getElementById('content').style.display = '';
+      document.getElementById('action-bar').style.display = '';
+      document.getElementById('mode-bar').style.display = '';
+      document.getElementById('tts-panel').style.display = 'none';
     } else {
       showToast(`${item.textContent.trim()} — coming soon`, false);
     }

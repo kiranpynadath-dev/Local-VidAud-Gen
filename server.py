@@ -130,6 +130,28 @@ async def serve_output(filename: str, request: Request):
 # API
 # ---------------------------------------------------------------------------
 
+class TTSRequest(BaseModel):
+    text: str
+    voice: str = "heart"
+    speed: float = 1.0
+
+
+@app.post("/api/tts")
+async def api_tts(req: TTSRequest):
+    """Generate speech and return MP3 directly (no job queue)."""
+    if not req.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    out = OUTPUT_DIR / f"tts_{uuid.uuid4().hex}.mp3"
+    try:
+        from src.tts_generator import TTSGenerator
+        tts = TTSGenerator()
+        tts.generate_speech(req.text, out, voice=req.voice, speed=req.speed)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+    return FileResponse(str(out), media_type="audio/mpeg",
+                        headers={"Content-Disposition": 'attachment; filename="speech.mp3"'})
+
+
 @app.post("/api/enrich-image")
 async def api_enrich_image(file: UploadFile = File(...)):
     """Receive an image, return a 16:9 1920×1080 enriched version."""
