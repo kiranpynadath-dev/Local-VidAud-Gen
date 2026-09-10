@@ -39,8 +39,6 @@ VOICES: dict[str, str] = {
 
 DEFAULT_VOICE  = "heart"
 MODEL_DIR      = Path("models/kokoro")
-MODEL_FILE     = "kokoro-v0_19.onnx"
-VOICES_FILE    = "voices.bin"
 HF_REPO        = "hexgrad/Kokoro-82M"
 
 
@@ -64,16 +62,29 @@ class TTSGenerator:
     # Setup
     # ------------------------------------------------------------------
 
+    def _find_repo_files(self) -> tuple[str, str]:
+        """Return (onnx_filename, voices_filename) by listing the HF repo live."""
+        from huggingface_hub import list_repo_files
+        files = list(list_repo_files(HF_REPO))
+        onnx = next((f for f in files if f.endswith(".onnx") and "kokoro" in f), None)
+        voices = next((f for f in files if "voices" in f and f.endswith(".bin")), None)
+        if not onnx:
+            raise RuntimeError(f"No .onnx model found in {HF_REPO}. Files: {files}")
+        if not voices:
+            raise RuntimeError(f"No voices.bin found in {HF_REPO}. Files: {files}")
+        return onnx, voices
+
     def download_models(self) -> None:
         """Download Kokoro model + voice files from Hugging Face (once only)."""
         from huggingface_hub import hf_hub_download
 
         self.model_dir.mkdir(parents=True, exist_ok=True)
+        onnx_file, voices_file = self._find_repo_files()
+        logger.info("Kokoro repo files: model=%s  voices=%s", onnx_file, voices_file)
 
-        for filename in (MODEL_FILE, VOICES_FILE):
-            dest = self.model_dir / filename
+        for filename, size in ((onnx_file, "~310 MB"), (voices_file, "~2 MB")):
+            dest = self.model_dir / Path(filename).name
             if not dest.exists():
-                size = "~310 MB" if filename == MODEL_FILE else "~2 MB"
                 logger.info("Downloading %s (%s) …", filename, size)
                 hf_hub_download(
                     repo_id=HF_REPO,
@@ -87,16 +98,18 @@ class TTSGenerator:
     def _ensure_loaded(self) -> None:
         if self._kokoro is not None:
             return
-        if not (self.model_dir / MODEL_FILE).exists():
-            logger.info("Kokoro model not found — downloading …")
+        # Find whichever model file is present locally, or download
+        existing_onnx = next(self.model_dir.glob("*.onnx"), None) if self.model_dir.exists() else None
+        existing_voices = next(self.model_dir.glob("voices*.bin"), None) if self.model_dir.exists() else None
+        if not existing_onnx or not existing_voices:
+            logger.info("Kokoro model not found locally — downloading …")
             self.download_models()
+            existing_onnx = next(self.model_dir.glob("*.onnx"), None)
+            existing_voices = next(self.model_dir.glob("voices*.bin"), None)
         try:
             from kokoro_onnx import Kokoro
-            self._kokoro = Kokoro(
-                str(self.model_dir / MODEL_FILE),
-                str(self.model_dir / VOICES_FILE),
-            )
-            logger.info("Kokoro TTS loaded from %s", self.model_dir)
+            self._kokoro = Kokoro(str(existing_onnx), str(existing_voices))
+            logger.info("Kokoro TTS loaded: %s", existing_onnx.name)
         except ImportError as exc:
             raise RuntimeError(
                 "kokoro-onnx not installed. Run: pip install kokoro-onnx soundfile"
