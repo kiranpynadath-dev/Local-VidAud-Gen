@@ -103,8 +103,8 @@ async def api_device_info():
 
 @app.get("/api/voices")
 async def api_voices():
-    from src.audio_generator import VOICE_PRESETS
-    voices = [{"id": vid, "name": name.capitalize()} for name, vid in VOICE_PRESETS.items()]
+    from src.tts_generator import VOICES
+    voices = [{"id": vid, "name": name.capitalize()} for name, vid in VOICES.items()]
     return {"voices": voices}
 
 
@@ -124,7 +124,8 @@ async def api_upload(file: UploadFile = File(...)):
 class GenerateRequest(BaseModel):
     image_filename: str
     text: Optional[str] = None
-    voice: str = "rachel"
+    voice: str = "heart"          # Kokoro voice name or ID (e.g. "heart", "af_heart")
+    speed: float = 1.0
     quality: str = "medium"
     seed: Optional[int] = None
     loop_audio: bool = True
@@ -169,6 +170,7 @@ async def _run_generation(job_id: str, req: GenerateRequest, image_path: Path) -
             image=image_path,
             text=req.text if req.text else None,
             voice=req.voice,
+            speed=req.speed,
             seed=req.seed,
             loop_audio=req.loop_audio,
             filename_prefix=job_id,

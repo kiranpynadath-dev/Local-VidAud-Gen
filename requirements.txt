@@ -32,8 +32,14 @@ onnx==1.16.0
 # Optional but strongly recommended for NPU INT8 quantization
 olive-ai==0.5.0
 
-# ----- Audio -----
-elevenlabs==1.2.2
+# ----- Local TTS (Kokoro — free, no API key) -----
+kokoro-onnx==0.4.0      # Kokoro-82M ONNX inference
+soundfile==0.12.1        # WAV file writing
+scipy==1.13.0            # fallback WAV writer if soundfile unavailable
+
+# ----- Audio (ElevenLabs — optional, cloud API) -----
+# Only needed if you want cloud TTS instead of local Kokoro.
+# elevenlabs==1.2.2
 mutagen==1.47.0      # audio duration queries
 
 # ----- Video processing -----

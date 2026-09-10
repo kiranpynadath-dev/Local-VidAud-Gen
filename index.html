@@ -684,8 +684,8 @@ let subtitlesOn = false;
 let uploadedFilename = null;
 let currentJobId = null;
 let pollInterval = null;
-let selectedVoiceId = '21m00Tcm4TlvDq8ikWAM';
-let selectedVoiceName = 'Rachel';
+let selectedVoiceId   = 'heart';
+let selectedVoiceName = 'Heart';
 
 // ── Boot ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
@@ -733,15 +733,16 @@ async function fetchDeviceInfo() {
 }
 
 // ── Voice cards ──────────────────────────────────────────────
+// Kokoro TTS voices — free, local, no API key
 const VOICES = [
-  { name:'Libby',  id:'pMsXgVXv3BLzUgSXRplE', tags:['Ads','Customer Service','Youth'] },
-  { name:'Amber',  id:'jBpfuIE2acCO8z3wKNLl', tags:['Ads','Customer Service','Youth'] },
-  { name:'Liam',   id:'TX3LPaxmHKxFdv7VOQHJ', tags:['Ads','Customer Service','Youth'] },
-  { name:'Cora',   id:'XB0fDUnXU5powFXDhCwa', tags:['Ads','Customer Service','Youth'] },
-  { name:'Rachel', id:'21m00Tcm4TlvDq8ikWAM', tags:['Narrative','News','Youth'] },
-  { name:'Adam',   id:'pNInz6obpgDQGcFmaJgB', tags:['News','Deep','Business'] },
-  { name:'Josh',   id:'TxGEqnHWrfWFTfGW9XjX', tags:['Casual','Ads','Youth'] },
-  { name:'Bella',  id:'EXAVITQu4vr4xnSDxMaL', tags:['Warm','Narrative','Female'] },
+  { name:'Heart',    id:'heart',    tags:['Warm','Friendly','Female'],     lang:'🇺🇸 American' },
+  { name:'Bella',    id:'bella',    tags:['Expressive','Emotive','Female'],lang:'🇺🇸 American' },
+  { name:'Sarah',    id:'sarah',    tags:['Professional','Clear','Female'],lang:'🇺🇸 American' },
+  { name:'Sky',      id:'sky',      tags:['Bright','Energetic','Female'],  lang:'🇺🇸 American' },
+  { name:'Adam',     id:'adam',     tags:['Deep','Authoritative','Male'],  lang:'🇺🇸 American' },
+  { name:'Michael',  id:'michael',  tags:['Casual','Warm','Male'],         lang:'🇺🇸 American' },
+  { name:'Emma',     id:'emma',     tags:['Clear','Professional','Female'],lang:'🇬🇧 British'  },
+  { name:'George',   id:'george',   tags:['Authoritative','Rich','Male'],  lang:'🇬🇧 British'  },
 ];
 
 function renderVoiceCards() {
@@ -758,8 +759,8 @@ function renderVoiceCards() {
         <div class="vc-play"><svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg></div>
         <div>
           <div class="vc-name">${v.name}</div>
+          <div style="font-size:10px;color:#6666aa;margin-top:1px;">${v.lang}</div>
         </div>
-        <span class="flag" style="margin-left:auto">🇺🇸</span>
       </div>
       <div class="vc-wave">${bars}</div>
       <div class="vc-tags">${v.tags.map(t=>`<span class="vc-tag">${t}</span>`).join('')}</div>
@@ -907,7 +908,8 @@ async function startGeneration() {
   const payload = {
     image_filename: uploadedFilename,
     text: text,
-    voice: selectedVoiceId,   // pass ElevenLabs voice ID directly
+    voice: selectedVoiceId,      // Kokoro voice name e.g. "heart", "adam"
+    speed: speedVal,
     quality: quality,
     seed: 42,
     loop_audio: true,

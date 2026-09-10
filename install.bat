@@ -78,16 +78,23 @@ if %errorlevel% neq 0 (
 )
 echo  [OK] Dependencies installed
 
+:: ── Pre-download Kokoro TTS model ────────────────────────────
+echo.
+echo  Pre-downloading Kokoro TTS model (~312 MB, one time only)...
+python -c "from src.tts_generator import TTSGenerator; TTSGenerator().download_models()"
+if %errorlevel% neq 0 (
+    echo  [WARN] Kokoro model download failed. It will retry on first use.
+) else (
+    echo  [OK] Kokoro TTS model ready
+)
+
 :: ── Copy .env ─────────────────────────────────────────────────
 echo.
 if not exist .env (
     copy .env.example .env >nul
-    echo  [ACTION] .env file created from template.
-    echo.
-    echo  *** IMPORTANT ***
-    echo  Open .env in a text editor and set your ELEVENLABS_API_KEY.
-    echo  Get a free key at: https://elevenlabs.io
-    echo  ****************
+    echo  [ACTION] .env file created.
+    echo  NOTE: No API keys required - TTS runs fully locally with Kokoro.
+    echo  Only add HF_TOKEN if the SVD model download asks for one.
 ) else (
     echo  [OK] .env already exists
 )
@@ -98,8 +105,10 @@ echo  ================================================
 echo   Installation complete!
 echo.
 echo   Next steps:
-echo   1. Edit .env  — add your ELEVENLABS_API_KEY
-echo   2. Run start.bat to launch the app
+echo   1. (Optional) Edit .env — add HF_TOKEN if SVD
+echo      model download requires Hugging Face login.
+echo   2. Run start.bat to launch the app.
+echo   No API keys required for audio generation!
 echo  ================================================
 echo.
 pause
