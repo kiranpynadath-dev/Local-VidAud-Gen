@@ -1,0 +1,77 @@
+# ============================================================
+# Local Video & Audio Generation System
+# Target: Windows 11, AMD Ryzen 5 PRO 230, Radeon 760M, Ryzen AI NPU
+# Python 3.10+
+# ============================================================
+
+# ----- PyTorch (CPU wheels; swap for GPU below) -----
+# NOTE: On Windows with AMD GPU, install torch *without* CUDA:
+#   pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
+torch==2.2.2
+torchvision==0.17.2
+
+# ----- DirectML (AMD GPU on Windows) -----
+# Enables AMD Radeon 760M via DirectX 12 / D3D12
+torch-directml==0.2.4.dev230426
+
+# ----- Diffusers / HuggingFace stack -----
+diffusers==0.27.2
+transformers==4.40.1
+accelerate==0.30.0
+huggingface-hub==0.22.2
+safetensors==0.4.3
+
+# ----- ONNX Runtime (NPU / DirectML) -----
+# For AMD Ryzen AI NPU:  use AMD's custom ORT build with VitisAI EP
+#   Download from: https://ryzenai.docs.amd.com/en/latest/inst.html
+# For DirectML fallback:
+onnxruntime-directml==1.17.3
+onnx==1.16.0
+
+# ----- AMD Olive (quantization for NPU) -----
+# Optional but strongly recommended for NPU INT8 quantization
+olive-ai==0.5.0
+
+# ----- Audio -----
+elevenlabs==1.2.2
+mutagen==1.47.0      # audio duration queries
+
+# ----- Video processing -----
+imageio==2.34.1
+imageio-ffmpeg==0.5.1   # ships ffmpeg binary (fallback; prefer system ffmpeg)
+opencv-python==4.9.0.80
+Pillow==10.3.0
+ffmpeg-python==0.2.0    # Python bindings for ffmpeg/ffprobe
+
+# ----- Utilities -----
+numpy==1.26.4
+tqdm==4.66.2
+rich==13.7.1
+psutil==5.9.8
+python-dotenv==1.0.1
+
+# ============================================================
+# INSTALLATION NOTES
+# ============================================================
+#
+# 1. Create virtual environment:
+#    python -m venv .venv
+#    .venv\Scripts\activate          (Windows)
+#
+# 2. Install PyTorch (CPU base — required by torch-directml):
+#    pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
+#
+# 3. Install remaining packages:
+#    pip install -r requirements.txt --ignore-requires-python
+#
+# 4. For NPU support, install AMD Ryzen AI SDK separately:
+#    https://ryzenai.docs.amd.com/en/latest/inst.html
+#    This replaces onnxruntime-directml with the VitisAI-enabled build.
+#
+# 5. Install system FFmpeg (recommended over imageio-ffmpeg):
+#    winget install FFmpeg                    (Windows)
+#    or download from https://ffmpeg.org/download.html
+#
+# 6. Verify installation:
+#    python -c "from src.device_manager import DeviceManager; print(DeviceManager().detect())"
+# ============================================================
