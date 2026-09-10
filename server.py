@@ -82,7 +82,10 @@ async def serve_output(filename: str):
     path = OUTPUT_DIR / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
-    return FileResponse(str(path), media_type="video/mp4")
+    ext = path.suffix.lower()
+    media_map = {".mp4": "video/mp4", ".mp3": "audio/mpeg", ".zip": "application/zip"}
+    media_type = media_map.get(ext, "application/octet-stream")
+    return FileResponse(str(path), media_type=media_type)
 
 # ---------------------------------------------------------------------------
 # API
