@@ -13,7 +13,7 @@ from .device_manager import DeviceManager
 from .sync import sync_audio_video
 from .text_to_video import TextToVideoGenerator
 from .tts_generator import TTSGenerator
-from .utils import MemoryManager, ensure_dir, setup_logging
+from .utils import MemoryManager, ensure_dir, setup_logging, upscale_video
 from .video_editor import VideoEditor
 from .video_processor import VideoProcessor
 
@@ -99,6 +99,9 @@ class VideoAudioGenerator:
         # ── Video ──────────────────────────────────────────────────────
         logger.info("=== Video Generation ===")
         video_path = self._video_processor.generate_from_image(image, video_path, seed=seed)
+        if self.quality in ("medium", "high"):
+            logger.info("=== Upscaling to 1080p 60fps ===")
+            video_path = upscale_video(video_path, video_path)
 
         # ── Audio (Kokoro TTS) ─────────────────────────────────────────
         if text:
@@ -187,6 +190,9 @@ class VideoAudioGenerator:
             negative_prompt=negative_prompt,
             seed=seed,
         )
+        if self.quality in ("medium", "high"):
+            logger.info("=== Upscaling to 1080p 60fps ===")
+            video_path = upscale_video(video_path, video_path)
 
         if text:
             logger.info("=== TTS Audio ===")

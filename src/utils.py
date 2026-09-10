@@ -13,6 +13,8 @@ from typing import Optional
 
 from tqdm import tqdm
 
+logger = logging.getLogger(__name__)
+
 
 def setup_logging(
     level: str = "INFO",
@@ -66,6 +68,46 @@ class ProgressTracker:
 
 def check_ffmpeg() -> bool:
     return shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
+
+
+def upscale_video(
+    src: Path,
+    dst: Path,
+    width: int = 1920,
+    height: int = 1080,
+    fps: int = 60,
+) -> Path:
+    """Upscale video to target resolution and interpolate to target fps via ffmpeg.
+
+    Uses lanczos scaling (letterbox if aspect differs) + blend frame interpolation.
+    Falls back to src unchanged if ffmpeg is unavailable.
+    """
+    if not check_ffmpeg():
+        logger.warning("ffmpeg not found — skipping upscale")
+        return src
+
+    tmp = dst.with_suffix(".upscale_tmp.mp4")
+    # scale with letterbox to preserve aspect ratio, then interpolate fps
+    vf = (
+        f"scale={width}:{height}:flags=lanczos:force_original_aspect_ratio=decrease,"
+        f"pad={width}:{height}:(ow-iw)/2:(oh-ih)/2,"
+        f"minterpolate=fps={fps}:mi_mode=blend"
+    )
+    result = subprocess.run(
+        ["ffmpeg", "-y", "-i", str(src), "-vf", vf,
+         "-c:v", "libx264", "-crf", "18", "-preset", "fast",
+         "-c:a", "copy", "-pix_fmt", "yuv420p", str(tmp)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        logger.warning("upscale failed: %s", result.stderr[-300:])
+        tmp.unlink(missing_ok=True)
+        return src
+
+    import os
+    os.replace(str(tmp), str(dst))
+    logger.info("Upscaled → %dx%d @ %dfps: %s", width, height, fps, dst)
+    return dst
 
 
 def get_video_duration(path: Path) -> float:
