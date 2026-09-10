@@ -35,9 +35,38 @@ VOICES: dict[str, str] = {
     # British English — Male
     "george":   "bm_george",
     "lewis":    "bm_lewis",
+    # Hindi
+    "hi_swara":     "hi-IN-SwaraNeural",
+    "hi_himanshu":  "hi-IN-HimanshuNeural",
+    # Tamil
+    "ta_pallavi":   "ta-IN-PallaviNeural",
+    "ta_valluvar":  "ta-IN-ValluvarNeural",
+    # Telugu
+    "te_shruti":    "te-IN-ShrutiNeural",
+    "te_mohan":     "te-IN-MohanNeural",
+    # Kannada
+    "kn_sapna":     "kn-IN-SapnaNeural",
+    "kn_gagan":     "kn-IN-GaganNeural",
+    # Malayalam
+    "ml_sobhana":   "ml-IN-SobhanaNeural",
+    "ml_midhun":    "ml-IN-MidhunNeural",
+    # Bengali
+    "bn_tanishaa":  "bn-IN-TanishaaNeural",
+    "bn_bashkar":   "bn-IN-BashkarNeural",
+    # Marathi
+    "mr_aarohi":    "mr-IN-AarohiNeural",
+    "mr_manohar":   "mr-IN-ManoharNeural",
+    # Gujarati
+    "gu_dhwani":    "gu-IN-DhwaniNeural",
+    "gu_niranjan":  "gu-IN-NiranjanNeural",
+    # Punjabi
+    "pa_ojas":      "pa-IN-OjasNeural",
+    # Urdu
+    "ur_gul":       "ur-IN-GulNeural",
+    "ur_salman":    "ur-IN-SalmanNeural",
 }
 
-# edge-tts voice mapping (fallback)
+# edge-tts voice mapping (English kokoro fallback + all Indian voices direct)
 _EDGE_VOICES: dict[str, str] = {
     "af_heart":    "en-US-JennyNeural",
     "af_bella":    "en-US-AriaNeural",
@@ -140,8 +169,10 @@ class TTSGenerator:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
         voice_id = VOICES.get(voice.lower(), voice)
+        # Indian / non-kokoro voices go straight to edge-tts (voice_id is already an edge-tts name)
+        if "Neural" in voice_id:
+            return self._generate_edge(text, output_path, voice_id, speed)
         backend = self._select_backend()
-
         if backend == "kokoro":
             return self._generate_kokoro(text, output_path, voice_id, speed)
         else:
@@ -173,7 +204,8 @@ class TTSGenerator:
 
     def _generate_edge(self, text, output_path, voice_id, speed) -> Path:
         import edge_tts, tempfile, shutil
-        edge_voice = _EDGE_VOICES.get(voice_id, "en-US-JennyNeural")
+        # Indian voices already carry the full edge-tts name; English kokoro IDs need mapping
+        edge_voice = voice_id if "Neural" in voice_id else _EDGE_VOICES.get(voice_id, "en-US-JennyNeural")
         rate = f"+{int((speed-1)*100)}%" if speed >= 1 else f"{int((speed-1)*100)}%"
 
         # edge-tts is async — handle both script and Jupyter/Colab contexts
@@ -208,11 +240,22 @@ class TTSGenerator:
         return output_path
 
     def list_voices(self) -> list[dict]:
+        _lang_labels = {
+            "hi": "Hindi", "ta": "Tamil", "te": "Telugu", "kn": "Kannada",
+            "ml": "Malayalam", "bn": "Bengali", "mr": "Marathi", "gu": "Gujarati",
+            "pa": "Punjabi", "ur": "Urdu",
+        }
         rows = []
         for name, vid in VOICES.items():
-            lang   = "British" if vid.startswith("b") else "American"
-            gender = "Female" if "_f" in vid else "Male"
-            rows.append({"id": vid, "name": name.capitalize(), "lang": lang, "gender": gender})
+            if "Neural" in vid:
+                # Indian voice — derive lang from BCP-47 tag (e.g. hi-IN-SwaraNeural)
+                lang_code = vid.split("-")[0]
+                lang = _lang_labels.get(lang_code, lang_code.upper())
+                gender = "Female" if vid.endswith(("aNeural","iNeural","eNeural","oNeural","uNeural","aaNeural")) else "Male"
+            else:
+                lang   = "British" if vid.startswith("b") else "American"
+                gender = "Female" if "_f" in vid else "Male"
+            rows.append({"id": vid, "name": name.replace("_", " ").title(), "lang": lang, "gender": gender})
         return rows
 
     def unload(self) -> None:

@@ -190,8 +190,8 @@ async def api_device_info():
 
 @app.get("/api/voices")
 async def api_voices():
-    from src.tts_generator import VOICES
-    voices = [{"id": vid, "name": name.capitalize()} for name, vid in VOICES.items()]
+    from src.tts_generator import TTSGenerator
+    voices = TTSGenerator().list_voices()
     return {"voices": voices}
 
 
