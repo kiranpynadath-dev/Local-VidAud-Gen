@@ -25,8 +25,8 @@ safetensors==0.4.3
 # For AMD Ryzen AI NPU:  use AMD's custom ORT build with VitisAI EP
 #   Download from: https://ryzenai.docs.amd.com/en/latest/inst.html
 # For DirectML fallback:
-onnxruntime-directml==1.17.3
-onnx==1.16.0
+onnxruntime-directml>=1.17.3
+onnx>=1.16.0
 
 # ----- AMD Olive (quantization for NPU) -----
 # Optional but strongly recommended for NPU INT8 quantization

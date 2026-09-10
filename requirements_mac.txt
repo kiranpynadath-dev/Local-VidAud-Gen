@@ -14,8 +14,8 @@ huggingface-hub==0.22.2
 safetensors==0.4.3
 
 # ----- ONNX Runtime (standard — no DirectML on Mac) -----
-onnxruntime==1.17.3
-onnx==1.16.0
+onnxruntime>=1.20.0
+onnx>=1.16.0
 
 # ----- Local TTS (Kokoro — free, no API key) -----
 kokoro-onnx==0.4.0
