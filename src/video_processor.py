@@ -99,12 +99,12 @@ class VideoProcessor:
 
         if self._device_info.device_type == DeviceType.DIRECTML:
             import torch_directml
-
-            dml = torch_directml.device()
-            pipe = pipe.to(dml)
+            pipe = pipe.to(torch_directml.device())
         elif self._device_info.device_type == DeviceType.CUDA:
             pipe = pipe.to("cuda")
             pipe.enable_model_cpu_offload()
+        elif self._device_info.device_type == DeviceType.MPS:
+            pipe = pipe.to("mps")
         else:
             # CPU or NPU (NPU runs UNet via ONNX; PyTorch pipeline on CPU)
             pipe.enable_model_cpu_offload()

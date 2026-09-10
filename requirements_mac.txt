@@ -1,0 +1,45 @@
+# ============================================================
+# Local Video & Audio Generation System — macOS / Linux
+# Target: Apple Silicon (M1/M2/M3/M4) or Intel Mac, macOS 12.3+
+# Python 3.10+
+# ============================================================
+# torch / torchvision installed separately in install_mac.sh
+# (MPS support is built-in to the standard PyTorch wheel)
+
+# ----- Diffusers / HuggingFace stack -----
+diffusers==0.27.2
+transformers==4.40.1
+accelerate==0.30.0
+huggingface-hub==0.22.2
+safetensors==0.4.3
+
+# ----- ONNX Runtime (standard — no DirectML on Mac) -----
+onnxruntime==1.17.3
+onnx==1.16.0
+
+# ----- Local TTS (Kokoro — free, no API key) -----
+kokoro-onnx==0.4.0
+soundfile==0.12.1
+scipy==1.13.0
+
+# ----- Audio utilities -----
+mutagen==1.47.0
+
+# ----- Video processing -----
+imageio==2.34.1
+imageio-ffmpeg==0.5.1
+opencv-python==4.9.0.80
+Pillow==10.3.0
+ffmpeg-python==0.2.0
+
+# ----- Utilities -----
+numpy==1.26.4
+tqdm==4.66.2
+rich==13.7.1
+psutil==5.9.8
+python-dotenv==1.0.1
+
+# ----- Web UI server -----
+fastapi==0.111.0
+uvicorn[standard]==0.29.0
+python-multipart==0.0.9

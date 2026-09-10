@@ -158,6 +158,8 @@ class TextToVideoGenerator:
         elif self._device_info.device_type == DeviceType.CUDA:
             pipe = pipe.to("cuda")
             pipe.enable_model_cpu_offload()
+        elif self._device_info.device_type == DeviceType.MPS:
+            pipe = pipe.to("mps")
         else:
             pipe.enable_model_cpu_offload()
 

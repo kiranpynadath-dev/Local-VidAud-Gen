@@ -51,11 +51,21 @@ echo "Installing dependencies (may take 10-20 min)..."
 pip install -r requirements.txt --quiet
 echo "[OK] Dependencies installed"
 
+# ── Pre-download Kokoro TTS model ─────────────────────────────
+echo ""
+echo "Pre-downloading Kokoro TTS model (~312 MB, one time only)..."
+python3 -c "from src.tts_generator import TTSGenerator; TTSGenerator().download_models()" && \
+    echo "[OK] Kokoro TTS model ready" || \
+    echo "[WARN] Kokoro model download failed — will retry on first use"
+
 # ── .env ──────────────────────────────────────────────────────
 if [ ! -f ".env" ]; then
-    cp .env.example .env
-    echo ""
-    echo "[ACTION] .env created. Add your ELEVENLABS_API_KEY to .env before running."
+    if [ -f ".env.example" ]; then
+        cp .env.example .env
+    else
+        echo "# LocalVid AI config (no API keys required)" > .env
+    fi
+    echo "[OK] .env created (no API keys required)"
 fi
 
 echo ""

@@ -13,6 +13,7 @@ class DeviceType(Enum):
     NPU = "npu"
     DIRECTML = "directml"
     CUDA = "cuda"
+    MPS = "mps"
     CPU = "cpu"
 
 
@@ -50,6 +51,7 @@ class DeviceManager:
                 "npu": self._try_npu,
                 "directml": self._try_directml,
                 "cuda": self._try_cuda,
+                "mps": self._try_mps,
                 "cpu": lambda: self._cpu_fallback(),
             }.get(self._force.lower())
             if probe:
@@ -59,7 +61,7 @@ class DeviceManager:
                     return result
             logger.warning("Forced device '%s' unavailable, falling back to auto-detect", self._force)
 
-        for probe in (self._try_npu, self._try_directml, self._try_cuda):
+        for probe in (self._try_npu, self._try_directml, self._try_cuda, self._try_mps):
             result = probe()
             if result:
                 self._cached = result
@@ -127,6 +129,25 @@ class DeviceManager:
                     torch_device="cuda",
                 )
         except ImportError:
+            pass
+        return None
+
+    @staticmethod
+    def _try_mps() -> Optional[DeviceInfo]:
+        try:
+            import torch
+            if torch.backends.mps.is_available():
+                import platform
+                chip = platform.processor() or "Apple Silicon"
+                logger.info("Apple MPS detected: %s", chip)
+                return DeviceInfo(
+                    device_type=DeviceType.MPS,
+                    device_name=f"Apple MPS ({chip})",
+                    memory_gb=16.0,  # unified memory; conservative estimate
+                    supports_float16=True,
+                    torch_device="mps",
+                )
+        except (ImportError, AttributeError):
             pass
         return None
 

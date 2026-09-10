@@ -12,8 +12,7 @@ if [ ! -f ".venv/bin/activate" ]; then
 fi
 
 if [ ! -f ".env" ]; then
-    echo "[ERROR] .env not found. Copy .env.example to .env and add your API key."
-    exit 1
+    echo "[INFO] No .env found — using defaults (no API key required for local TTS)."
 fi
 
 source .venv/bin/activate
