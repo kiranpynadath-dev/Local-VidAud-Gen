@@ -1218,10 +1218,7 @@ function showResult(result) {
     const videoEl = document.getElementById('result-video');
     const url = `${API}/api/output/${result.final}`;
     videoEl.src = url;
-    videoEl.onerror = () => {
-      videoEl.style.display = 'none';
-      showToast('Video ready — use Download button below (proxy cannot stream video)', false);
-    };
+    videoEl.style.display = '';
     const dlFinal = document.getElementById('dl-final');
     dlFinal.href = url; dlFinal.download = result.final;
   }

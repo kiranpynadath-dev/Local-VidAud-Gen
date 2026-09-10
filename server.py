@@ -27,9 +27,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -79,14 +79,52 @@ async def api_health():
 
 
 @app.get("/api/output/{filename}")
-async def serve_output(filename: str):
+async def serve_output(filename: str, request: Request):
     path = OUTPUT_DIR / filename
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found")
     ext = path.suffix.lower()
     media_map = {".mp4": "video/mp4", ".mp3": "audio/mpeg", ".zip": "application/zip"}
     media_type = media_map.get(ext, "application/octet-stream")
-    return FileResponse(str(path), media_type=media_type)
+
+    file_size = path.stat().st_size
+    range_header = request.headers.get("range")
+
+    if range_header and ext == ".mp4":
+        # Parse "bytes=start-end"
+        range_val = range_header.replace("bytes=", "")
+        parts = range_val.split("-")
+        start = int(parts[0]) if parts[0] else 0
+        end   = int(parts[1]) if parts[1] else file_size - 1
+        end   = min(end, file_size - 1)
+        chunk = end - start + 1
+
+        def _iter():
+            with open(path, "rb") as f:
+                f.seek(start)
+                remaining = chunk
+                while remaining > 0:
+                    data = f.read(min(65536, remaining))
+                    if not data:
+                        break
+                    remaining -= len(data)
+                    yield data
+
+        return StreamingResponse(
+            _iter(),
+            status_code=206,
+            media_type=media_type,
+            headers={
+                "Content-Range": f"bytes {start}-{end}/{file_size}",
+                "Accept-Ranges": "bytes",
+                "Content-Length": str(chunk),
+            },
+        )
+
+    return FileResponse(
+        str(path), media_type=media_type,
+        headers={"Accept-Ranges": "bytes", "Content-Length": str(file_size)},
+    )
 
 # ---------------------------------------------------------------------------
 # API
