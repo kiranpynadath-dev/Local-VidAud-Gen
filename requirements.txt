@@ -32,8 +32,12 @@ onnx>=1.16.0
 # Optional but strongly recommended for NPU INT8 quantization
 olive-ai==0.5.0
 
-# ----- Local TTS (Kokoro — free, no API key) -----
-kokoro>=0.9.2            # official package — auto-downloads model on first use
+# ----- Local TTS -----
+# Primary (offline): kokoro — 82M model, MIT license, ~300 MB first-run download
+#   pip install kokoro
+# Fallback (online, no install issues): edge-tts — free Microsoft Neural TTS
+edge-tts>=6.1.9          # auto-selected if kokoro is not installed
+kokoro>=0.9.2            # optional; skip if build fails (edge-tts is used instead)
 soundfile==0.12.1        # WAV file writing
 scipy==1.13.0            # fallback WAV writer if soundfile unavailable
 
