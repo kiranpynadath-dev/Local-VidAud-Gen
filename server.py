@@ -78,6 +78,21 @@ async def api_health():
     return {"status": "ok"}
 
 
+@app.get("/api/capabilities")
+async def api_capabilities():
+    def _can_import(mod):
+        try:
+            __import__(mod)
+            return True
+        except Exception:
+            return False
+    return {
+        "voice_cloning": _can_import("chatterbox"),
+        "openvoice": _can_import("openvoice"),
+        "python_version": __import__("sys").version,
+    }
+
+
 @app.get("/api/output/{filename}")
 async def serve_output(filename: str, request: Request):
     path = OUTPUT_DIR / filename

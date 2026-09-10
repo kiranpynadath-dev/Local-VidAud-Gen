@@ -858,6 +858,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           background:transparent;color:#8888aa;border:none;
           padding:8px 22px;font-size:13px;font-weight:600;cursor:pointer;">Clone Voice</button>
       </div>
+      <div id="t2a-clone-unavailable" style="display:none;margin-bottom:14px;padding:10px 14px;background:#1a1020;border:1px solid #4a2040;border-radius:8px;font-size:13px;color:#cc88aa;">
+        Voice cloning requires Python ≤ 3.10. Currently unavailable on this runtime.<br>
+        <span style="color:#8888aa;font-size:12px;">Preset voices work normally. For cloning, try Kaggle (Python 3.10 free GPU).</span>
+      </div>
 
       <textarea id="t2a-text" placeholder="Type or paste your script here…" style="
         width:100%;min-height:140px;background:#111128;border:1px solid #2d2d50;
@@ -1086,7 +1090,28 @@ document.addEventListener('DOMContentLoaded', () => {
   checkServerHealth();
   renderVoiceCards();
   populateT2VVoiceSelect();
+  checkCapabilities();
 });
+
+async function checkCapabilities() {
+  try {
+    const r = await fetch(`${API}/api/capabilities`);
+    if (!r.ok) return;
+    const caps = await r.json();
+    if (!caps.voice_cloning) {
+      const btn = document.getElementById('t2a-mode-clone');
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.4';
+        btn.style.cursor = 'not-allowed';
+        btn.title = 'Requires Python ≤ 3.10';
+        btn.onclick = () => {
+          document.getElementById('t2a-clone-unavailable').style.display = 'block';
+        };
+      }
+    }
+  } catch (_) {}
+}
 
 async function checkServerHealth() {
   try {
@@ -1663,6 +1688,11 @@ let _t2aMode = 'preset';
 let _cloneSampleFilename = null;
 
 function setT2AMode(mode) {
+  if (mode === 'clone' && document.getElementById('t2a-mode-clone').disabled) {
+    document.getElementById('t2a-clone-unavailable').style.display = 'block';
+    return;
+  }
+  document.getElementById('t2a-clone-unavailable').style.display = 'none';
   _t2aMode = mode;
   const isClone = mode === 'clone';
   document.getElementById('t2a-preset-section').style.display = isClone ? 'none' : 'flex';
