@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+"""
+FastAPI server for the Local VidGen AI web UI.
+
+Start with:
+    python server.py
+
+Then open http://localhost:8000 in your browser.
+
+Extra dependencies (add to venv before running):
+    pip install fastapi uvicorn python-multipart
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import shutil
+import uuid
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Optional
+
+import uvicorn
+from dotenv import load_dotenv
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
+
+load_dotenv()
+
+# ---------------------------------------------------------------------------
+# App setup
+# ---------------------------------------------------------------------------
+
+app = FastAPI(title="LocalVid Gen API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+UPLOAD_DIR = Path("uploads")
+OUTPUT_DIR = Path("output")
+UPLOAD_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
+
+# In-memory job store  {job_id: {...}}
+_jobs: dict[str, dict] = {}
+_executor = ThreadPoolExecutor(max_workers=1)  # one GPU job at a time
+
+# ---------------------------------------------------------------------------
+# Serve UI
+# ---------------------------------------------------------------------------
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    html_path = Path("index.html")
+    if html_path.exists():
+        return HTMLResponse(html_path.read_text(encoding="utf-8"))
+    return HTMLResponse("<h2>index.html not found. Place it next to server.py.</h2>", status_code=404)
+
+
+@app.get("/api/output/{filename}")
+async def serve_output(filename: str):
+    path = OUTPUT_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(str(path), media_type="video/mp4")
+
+# ---------------------------------------------------------------------------
+# API
+# ---------------------------------------------------------------------------
+
+@app.get("/api/device-info")
+async def api_device_info():
+    try:
+        from src.device_manager import DeviceManager
+        info = DeviceManager().detect()
+        return {
+            "device": info.device_name,
+            "type": info.device_type.value,
+            "memory_gb": info.memory_gb,
+            "float16": info.supports_float16,
+            "torch_device": info.torch_device,
+        }
+    except Exception as exc:
+        return {"device": "Unknown", "type": "cpu", "error": str(exc)}
+
+
+@app.get("/api/voices")
+async def api_voices():
+    from src.audio_generator import VOICE_PRESETS
+    voices = [{"id": vid, "name": name.capitalize()} for name, vid in VOICE_PRESETS.items()]
+    return {"voices": voices}
+
+
+@app.post("/api/upload")
+async def api_upload(file: UploadFile = File(...)):
+    allowed = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+    ext = Path(file.filename or "upload").suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest = UPLOAD_DIR / filename
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"filename": filename, "path": str(dest)}
+
+
+class GenerateRequest(BaseModel):
+    image_filename: str
+    text: Optional[str] = None
+    voice: str = "rachel"
+    quality: str = "medium"
+    seed: Optional[int] = None
+    loop_audio: bool = True
+
+
+@app.post("/api/generate")
+async def api_generate(req: GenerateRequest):
+    image_path = UPLOAD_DIR / req.image_filename
+    if not image_path.exists():
+        raise HTTPException(status_code=400, detail=f"Uploaded image not found: {req.image_filename}")
+
+    job_id = uuid.uuid4().hex
+    _jobs[job_id] = {"status": "pending", "progress": 0, "result": None, "error": None, "log": []}
+    asyncio.create_task(_run_generation(job_id, req, image_path))
+    return {"job_id": job_id}
+
+
+@app.get("/api/job/{job_id}")
+async def api_job_status(job_id: str):
+    if job_id not in _jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _jobs[job_id]
+
+
+# ---------------------------------------------------------------------------
+# Background generation task
+# ---------------------------------------------------------------------------
+
+async def _run_generation(job_id: str, req: GenerateRequest, image_path: Path) -> None:
+    _jobs[job_id]["status"] = "running"
+    _jobs[job_id]["progress"] = 5
+    _jobs[job_id]["log"].append("Starting generation …")
+
+    def _generate():
+        from src.generator import VideoAudioGenerator
+        gen = VideoAudioGenerator(
+            quality=req.quality,
+            output_dir=str(OUTPUT_DIR),
+            log_level="INFO",
+        )
+        result = gen.generate(
+            image=image_path,
+            text=req.text if req.text else None,
+            voice=req.voice,
+            seed=req.seed,
+            loop_audio=req.loop_audio,
+            filename_prefix=job_id,
+        )
+        gen.unload()
+        return result
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(_executor, _generate)
+        _jobs[job_id]["status"] = "done"
+        _jobs[job_id]["progress"] = 100
+        _jobs[job_id]["result"] = {
+            "video": result["video"].name if result.get("video") else None,
+            "audio": result["audio"].name if result.get("audio") else None,
+            "final": result["final"].name if result.get("final") else None,
+        }
+        _jobs[job_id]["log"].append("Generation complete.")
+    except Exception as exc:
+        _jobs[job_id]["status"] = "failed"
+        _jobs[job_id]["error"] = str(exc)
+        _jobs[job_id]["log"].append(f"Error: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    print("\n  LocalVid Gen — starting server")
+    print("  Open http://localhost:8000 in your browser\n")
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False, log_level="info")

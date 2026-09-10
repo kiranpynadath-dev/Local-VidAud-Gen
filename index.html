@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LocalVid AI — Local Video & Audio Generation</title>
+<style>
+/* ── Reset ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a16; color: #e2e2f0; height: 100vh; display: flex; overflow: hidden; }
+
+/* ── Sidebar ────────────────────────────────────────────────── */
+#sidebar {
+  width: 178px; min-width: 178px;
+  background: #0f0f22;
+  display: flex; flex-direction: column;
+  border-right: 1px solid #1e1e38;
+  padding: 0;
+  user-select: none;
+}
+.logo-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid #1e1e38;
+}
+.logo-icon {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+}
+.logo-text { font-size: 15px; font-weight: 700; color: #fff; }
+.badge-free {
+  font-size: 9px; font-weight: 700; letter-spacing: .5px;
+  background: #1e1e3a; color: #a78bfa; border: 1px solid #3b2f6b;
+  border-radius: 4px; padding: 2px 5px; margin-left: 2px;
+}
+.nav { flex: 1; padding: 12px 8px; display: flex; flex-direction: column; gap: 2px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border-radius: 8px;
+  font-size: 13px; color: #8888aa; cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.nav-item:hover { background: #1a1a30; color: #cccce0; }
+.nav-item.active {
+  background: linear-gradient(90deg, #5b21b6, #7c3aed);
+  color: #fff; font-weight: 600;
+}
+.nav-item svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.ai-badge {
+  font-size: 9px; font-weight: 700; background: linear-gradient(90deg,#f59e0b,#ef4444);
+  color: #fff; border-radius: 4px; padding: 2px 5px; margin-left: auto;
+}
+.nav-bottom { padding: 10px 8px 16px; border-top: 1px solid #1e1e38; }
+
+/* ── Main layout ────────────────────────────────────────────── */
+#main {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+/* Top header bar */
+#topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 24px; background: #0f0f22; border-bottom: 1px solid #1e1e38;
+  flex-shrink: 0;
+}
+#topbar h1 { font-size: 18px; font-weight: 700; color: #fff; }
+.topbar-right { display: flex; align-items: center; gap: 10px; }
+.btn-upgrade {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  color: #fff; font-size: 12px; font-weight: 700; border: none;
+  border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+}
+.btn-create {
+  background: linear-gradient(90deg, #7c3aed, #a855f7);
+  color: #fff; font-size: 12px; font-weight: 700; border: none;
+  border-radius: 8px; padding: 7px 14px; cursor: pointer;
+  display: flex; align-items: center; gap: 5px;
+}
+.avatar-circle {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #7c3aed, #4f46e5);
+  border: 2px solid #3b2f6b; flex-shrink: 0;
+}
+.orientation-toggle {
+  display: flex; align-items: center; gap: 4px;
+  background: #1a1a2e; border-radius: 8px; padding: 4px;
+}
+.orient-btn {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: #8888aa; cursor: pointer;
+  padding: 5px 10px; border-radius: 6px; border: none; background: none;
+  transition: all .15s;
+}
+.orient-btn.active { background: #2a2a44; color: #fff; }
+.orient-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+/* ── Scrollable content ─────────────────────────────────────── */
+#content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 20px 24px 0;
+  display: flex; flex-direction: column; gap: 24px;
+}
+#content::-webkit-scrollbar { width: 6px; }
+#content::-webkit-scrollbar-track { background: transparent; }
+#content::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 3px; }
+
+/* Section headers */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.section-title { font-size: 14px; font-weight: 700; color: #e2e2f0; display: flex; align-items: center; gap: 8px; }
+.section-link { font-size: 12px; color: #7c3aed; text-decoration: none; cursor: pointer; }
+.section-link:hover { color: #a855f7; }
+.rec-badge {
+  background: linear-gradient(90deg, #f59e0b22, #ef444422);
+  border: 1px solid #f59e0b44; color: #f59e0b;
+  font-size: 10px; font-weight: 700; border-radius: 12px; padding: 3px 8px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+/* Two-col grid (templates + avatars side-by-side) */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* Card grids */
+.cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Template / Avatar cards */
+.card {
+  border-radius: 12px; overflow: hidden; cursor: pointer;
+  border: 1px solid #1e1e38; transition: border-color .15s, transform .15s;
+  background: #13132a;
+}
+.card:hover { border-color: #5b21b6; transform: translateY(-2px); }
+.card.selected { border-color: #7c3aed; box-shadow: 0 0 0 2px #7c3aed44; }
+.card-thumb {
+  width: 100%; aspect-ratio: 16/9; overflow: hidden;
+  position: relative; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; letter-spacing: .3px;
+}
+.avatar-thumb { aspect-ratio: 3/4; }
+.card-label {
+  padding: 8px 10px; font-size: 11px; color: #aaaacc; text-align: center;
+  border-top: 1px solid #1e1e38;
+}
+
+/* Template thumb gradients */
+.t1 { background: linear-gradient(135deg,#1e3a5f,#1a6090); }
+.t2 { background: linear-gradient(135deg,#1a3a1a,#2d6a2d); }
+.t3 { background: linear-gradient(135deg,#5a1a1a,#9b2929); }
+.t4 { background: linear-gradient(135deg,#0a1a3a,#1a2d6a); }
+.a1 { background: linear-gradient(180deg,#2a2a4a,#1a1a30); }
+.a2 { background: linear-gradient(180deg,#1a2a1a,#141428); }
+.a3 { background: linear-gradient(180deg,#2a1a1a,#1e1428); }
+.a4 { background: linear-gradient(180deg,#1a2a2a,#141e28); }
+.thumb-overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; padding: 8px;
+  text-align: center; color: #fff;
+}
+.thumb-title { font-size: 13px; font-weight: 800; text-shadow: 0 1px 4px #0008; }
+.thumb-sub { font-size: 10px; color: #ffffffaa; margin-top: 3px; }
+.avatar-silhouette {
+  width: 56px; height: 80px; border-radius: 50% 50% 0 0 / 60% 60% 0 0;
+  background: #ffffff22; margin-bottom: 4px;
+}
+
+/* ── Clone Voice ─────────────────────────────────────────────── */
+#clone-voice-section { }
+.voice-controls { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.vc-select {
+  background: #1a1a2e; border: 1px solid #2a2a44; color: #cccce0;
+  border-radius: 8px; padding: 7px 12px; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; min-width: 130px;
+}
+.vc-select select {
+  background: transparent; border: none; color: inherit; font-size: 12px;
+  cursor: pointer; outline: none; width: 100%;
+}
+.voice-cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.voice-card {
+  background: #13132a; border: 1px solid #1e1e38; border-radius: 10px;
+  padding: 12px; cursor: pointer; transition: border-color .15s;
+}
+.voice-card:hover { border-color: #7c3aed; }
+.voice-card.selected { border-color: #7c3aed; background: #1a1030; }
+.vc-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.vc-play {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: linear-gradient(135deg,#7c3aed,#a855f7);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.vc-play svg { width: 10px; height: 10px; fill: #fff; }
+.vc-name { font-size: 13px; font-weight: 600; color: #e2e2f0; }
+.vc-wave {
+  height: 28px; display: flex; align-items: center; gap: 1px;
+  margin-bottom: 8px; overflow: hidden;
+}
+.vc-wave-bar {
+  flex: 1; background: #3b2f6b; border-radius: 2px;
+  animation: wave 1.2s ease-in-out infinite;
+}
+.voice-card.selected .vc-wave-bar { background: #7c3aed; }
+@keyframes wave {
+  0%,100% { transform: scaleY(.4); }
+  50% { transform: scaleY(1); }
+}
+.vc-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+.vc-tag {
+  font-size: 10px; color: #8888aa; background: #1e1e38;
+  border-radius: 4px; padding: 2px 7px;
+}
+.flag { font-size: 14px; }
+
+/* ── Bottom action bar ──────────────────────────────────────── */
+#action-bar {
+  background: #0f0f22; border-top: 1px solid #1e1e38;
+  padding: 12px 24px; flex-shrink: 0;
+}
+.action-top {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.tabs {
+  display: flex; background: #1a1a2e; border-radius: 8px; padding: 3px; gap: 2px;
+}
+.tab-btn {
+  padding: 6px 14px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  border: none; background: none; color: #8888aa; cursor: pointer; transition: all .15s;
+}
+.tab-btn.active { background: #7c3aed; color: #fff; }
+.action-sep { width: 1px; height: 26px; background: #2a2a44; margin: 0 4px; }
+.lang-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: #1a1a2e; border: 1px solid #2a2a44; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; color: #cccce0; cursor: pointer;
+}
+.speed-ctrl {
+  display: flex; align-items: center; gap: 6px;
+  background: #1a1a2e; border: 1px solid #2a2a44; border-radius: 8px;
+  padding: 6px 10px; font-size: 12px; color: #cccce0;
+}
+.speed-btn { background: none; border: none; color: #8888aa; cursor: pointer; font-size: 14px; padding: 0 2px; }
+.sub-ctrl {
+  display: flex; align-items: center; gap: 8px;
+  background: #1a1a2e; border: 1px solid #2a2a44; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; color: #cccce0;
+}
+.toggle-switch {
+  width: 32px; height: 18px; background: #2a2a44; border-radius: 9px;
+  position: relative; cursor: pointer; transition: background .2s;
+}
+.toggle-switch.on { background: #7c3aed; }
+.toggle-knob {
+  width: 12px; height: 12px; background: #fff; border-radius: 50%;
+  position: absolute; top: 3px; left: 3px; transition: left .2s;
+}
+.toggle-switch.on .toggle-knob { left: 17px; }
+.timer-disp {
+  display: flex; align-items: center; gap: 6px;
+  background: #1a1a2e; border: 1px solid #2a2a44; border-radius: 8px;
+  padding: 6px 12px; font-size: 12px; color: #cccce0; margin-left: auto;
+}
+.timer-disp svg { width: 14px; height: 14px; fill: none; stroke: #7c3aed; stroke-width: 1.8; }
+
+/* Script textarea row */
+.script-row {
+  display: flex; gap: 10px; align-items: flex-start;
+}
+.script-area {
+  flex: 1; min-height: 70px; max-height: 110px;
+  background: #13132a; border: 1px solid #2a2a44; border-radius: 10px;
+  color: #e2e2f0; font-size: 13px; padding: 12px 14px;
+  resize: none; outline: none; line-height: 1.5;
+  font-family: inherit;
+}
+.script-area:focus { border-color: #7c3aed; }
+.script-area::placeholder { color: #555570; }
+.btn-generate {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff; font-size: 13px; font-weight: 700; border: none;
+  border-radius: 10px; padding: 12px 20px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  min-width: 110px; transition: opacity .15s;
+  white-space: nowrap;
+}
+.btn-generate:disabled { opacity: .5; cursor: not-allowed; }
+.btn-generate svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 1.8; }
+
+/* ── Upload zone ─────────────────────────────────────────────── */
+#upload-zone {
+  border: 2px dashed #2a2a44; border-radius: 12px;
+  padding: 32px; text-align: center; cursor: pointer;
+  color: #5555aa; font-size: 13px; transition: border-color .15s;
+  display: none;
+}
+#upload-zone:hover, #upload-zone.dragover { border-color: #7c3aed; color: #a78bfa; }
+#upload-zone.has-image { border-style: solid; border-color: #7c3aed44; }
+#upload-zone svg { width: 36px; height: 36px; stroke: currentColor; fill: none; stroke-width: 1.5; margin-bottom: 10px; }
+#upload-preview {
+  max-width: 100%; max-height: 140px; border-radius: 8px;
+  display: none; margin: 0 auto;
+}
+#file-input { display: none; }
+
+/* ── Status / Progress ──────────────────────────────────────── */
+#status-area {
+  background: #13132a; border: 1px solid #1e1e38; border-radius: 12px;
+  padding: 16px; margin: 0 24px 16px; display: none;
+}
+.status-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.status-title { font-size: 13px; font-weight: 700; }
+.status-badge { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 700; }
+.status-badge.pending   { background:#1e1e38; color:#8888aa; }
+.status-badge.running   { background:#1e2f1e; color:#34d399; }
+.status-badge.done      { background:#1a2f1a; color:#4ade80; }
+.status-badge.failed    { background:#2f1a1a; color:#f87171; }
+.progress-track {
+  height: 6px; background: #1e1e38; border-radius: 3px; overflow: hidden; margin-bottom: 10px;
+}
+.progress-fill {
+  height: 100%; background: linear-gradient(90deg,#7c3aed,#a855f7);
+  border-radius: 3px; transition: width .4s ease;
+  width: 0%;
+}
+.status-log { font-size: 11px; color: #6666aa; font-family: monospace; }
+#video-result {
+  margin-top: 12px; display: none;
+  flex-direction: column; align-items: center; gap: 8px;
+}
+#result-video {
+  width: 100%; max-height: 220px; border-radius: 8px;
+  background: #000; outline: none;
+}
+.result-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.result-link {
+  font-size: 11px; color: #a78bfa; background: #1a1030;
+  border: 1px solid #3b2f6b; border-radius: 6px; padding: 5px 12px;
+  text-decoration: none; cursor: pointer;
+}
+.result-link:hover { background: #2a1a48; }
+
+/* ── Device info tooltip ────────────────────────────────────── */
+#device-pill {
+  display: flex; align-items: center; gap: 6px;
+  background: #1a1a2e; border: 1px solid #2a2a44;
+  border-radius: 20px; padding: 5px 12px;
+  font-size: 11px; color: #8888aa; margin-right: 4px;
+}
+.device-dot { width: 7px; height: 7px; border-radius: 50%; background: #34d399; }
+.device-dot.gpu { background: #818cf8; }
+.device-dot.npu { background: #f59e0b; }
+.device-dot.cpu { background: #6b7280; }
+
+/* ── Quality select ─────────────────────────────────────────── */
+.quality-row {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: #8888aa;
+}
+.quality-row label { white-space: nowrap; }
+.quality-select {
+  background: #1a1a2e; border: 1px solid #2a2a44; color: #cccce0;
+  border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none;
+}
+
+/* Scrollbar globally */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a44; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ===== SIDEBAR ===== -->
+<nav id="sidebar">
+  <div class="logo-row">
+    <div class="logo-icon">✦</div>
+    <span class="logo-text">LocalVid AI</span>
+    <span class="badge-free">FREE</span>
+  </div>
+  <div class="nav">
+    <div class="nav-item active" data-page="home">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      Home
+    </div>
+    <div class="nav-item" data-page="templates">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Templates
+    </div>
+    <div class="nav-item" data-page="avatars">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      Avatars
+      <span class="ai-badge">✦ AI</span>
+    </div>
+    <div class="nav-item" data-page="clonevoice">
+      <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+      Clone Voice
+    </div>
+    <div class="nav-item" data-page="creations">
+      <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 7h5M2 17h5M17 7h5M17 17h5M2 12h20"/></svg>
+      My Creations
+    </div>
+    <div class="nav-item" data-page="files">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+      My Files
+    </div>
+  </div>
+  <div class="nav-bottom">
+    <div class="nav-item" id="nav-logout">
+      <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Log out
+    </div>
+  </div>
+</nav>
+
+<!-- ===== MAIN ===== -->
+<div id="main">
+  <!-- Top bar -->
+  <div id="topbar">
+    <h1>What video will you create today?</h1>
+    <div class="topbar-right">
+      <div id="device-pill">
+        <span class="device-dot" id="device-dot"></span>
+        <span id="device-label">Detecting…</span>
+      </div>
+      <div class="orientation-toggle">
+        <button class="orient-btn active" id="btn-landscape" onclick="setOrientation('landscape')">
+          <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/></svg>
+          Landscape
+        </button>
+        <button class="orient-btn" id="btn-portrait" onclick="setOrientation('portrait')">
+          <svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/></svg>
+          Portrait
+        </button>
+      </div>
+      <button class="btn-upgrade">⚡ Upgrade</button>
+      <button class="btn-create" onclick="scrollToGenerate()">＋ Create Video</button>
+      <div class="avatar-circle"></div>
+    </div>
+  </div>
+
+  <!-- Status / progress area -->
+  <div id="status-area">
+    <div class="status-header">
+      <span class="status-title">Generating video…</span>
+      <span class="status-badge pending" id="status-badge">Pending</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <div class="status-log" id="status-log">Waiting to start…</div>
+    <div id="video-result">
+      <video id="result-video" controls></video>
+      <div class="result-links">
+        <a class="result-link" id="dl-final" download>⬇ Download Final</a>
+        <a class="result-link" id="dl-audio" download>⬇ Download Audio</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scrollable content -->
+  <div id="content">
+
+    <!-- Row: Templates + Avatars -->
+    <div class="two-col">
+
+      <!-- Popular Templates -->
+      <div>
+        <div class="section-header">
+          <span class="section-title">Popular Templates</span>
+          <span class="section-link">See all templates (361)</span>
+        </div>
+        <div class="cards-grid" id="templates-grid">
+          <div class="card" onclick="selectTemplate(this,'software_guide')">
+            <div class="card-thumb t1">
+              <div class="thumb-overlay">
+                <div style="width:40px;height:40px;border-radius:50%;background:#ffffff22;margin-bottom:6px;display:flex;align-items:center;justify-content:center;font-size:18px;">👤</div>
+                <div class="thumb-title">How to Use</div>
+                <div class="thumb-title">The Software</div>
+                <div class="thumb-sub" style="margin-top:4px;font-size:9px;background:#ffffff22;padding:2px 8px;border-radius:4px;">Easy Guide ▶</div>
+              </div>
+            </div>
+            <div class="card-label">Software Quick Guide</div>
+          </div>
+          <div class="card" onclick="selectTemplate(this,'working_tips')">
+            <div class="card-thumb t2">
+              <div class="thumb-overlay">
+                <div style="font-size:11px;color:#ffffffaa;font-weight:700;letter-spacing:1px;">Daily</div>
+                <div class="thumb-title" style="font-size:16px;color:#34d399;">Working Tips</div>
+                <div class="thumb-sub">Set weekly goals<br>each Monday morning.</div>
+              </div>
+            </div>
+            <div class="card-label">Working Tips of the Day</div>
+          </div>
+          <div class="card" onclick="selectTemplate(this,'festival_news')">
+            <div class="card-thumb t3">
+              <div class="thumb-overlay">
+                <div style="font-size:10px;color:#ffaaaa;letter-spacing:2px;">● BREAKING</div>
+                <div class="thumb-title" style="font-size:20px;font-style:italic;">LATEST<br>NEWS</div>
+              </div>
+            </div>
+            <div class="card-label">Festival News</div>
+          </div>
+          <div class="card" onclick="selectTemplate(this,'product_news')">
+            <div class="card-thumb t4">
+              <div class="thumb-overlay">
+                <div style="font-size:9px;color:#ffffffaa;background:#ef444466;padding:2px 8px;border-radius:3px;margin-bottom:4px;letter-spacing:1px;">● LIVE</div>
+                <div class="thumb-title">FIRST LINE INFO</div>
+                <div style="width:80%;height:2px;background:#ef4444;margin-top:6px;border-radius:1px;"></div>
+              </div>
+            </div>
+            <div class="card-label">Quick Product News</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Avatars -->
+      <div>
+        <div class="section-header">
+          <span class="section-title">
+            AI Avatars
+            <span class="rec-badge">🏆 RECOMMENDED</span>
+          </span>
+          <span class="section-link">See all avatars (339)</span>
+        </div>
+        <div class="cards-grid" id="avatars-grid">
+          <div class="card" onclick="selectAvatar(this,'charles')">
+            <div class="card-thumb avatar-thumb a1">
+              <div class="thumb-overlay">
+                <div class="avatar-silhouette"></div>
+                <div style="font-size:10px;color:#aaaacc;">Business · Male</div>
+              </div>
+            </div>
+            <div class="card-label">Charles - Teacher</div>
+          </div>
+          <div class="card" onclick="selectAvatar(this,'adam')">
+            <div class="card-thumb avatar-thumb a2">
+              <div class="thumb-overlay">
+                <div class="avatar-silhouette"></div>
+                <div style="font-size:10px;color:#aaaacc;">Casual · Male</div>
+              </div>
+            </div>
+            <div class="card-label">Adam - Vlogger</div>
+          </div>
+          <div class="card" onclick="selectAvatar(this,'madison')">
+            <div class="card-thumb avatar-thumb a3">
+              <div class="thumb-overlay">
+                <div class="avatar-silhouette"></div>
+                <div style="font-size:10px;color:#aaaacc;">Professional · Female</div>
+              </div>
+            </div>
+            <div class="card-label">Madison - Sales</div>
+          </div>
+          <div class="card" onclick="selectAvatar(this,'benjamin')">
+            <div class="card-thumb avatar-thumb a4">
+              <div class="thumb-overlay">
+                <div class="avatar-silhouette"></div>
+                <div style="font-size:10px;color:#aaaacc;">Casual · Male</div>
+              </div>
+            </div>
+            <div class="card-label">Benjamin - Casual</div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /two-col -->
+
+    <!-- Clone Voice section -->
+    <div id="clone-voice-section">
+      <div class="section-header">
+        <span class="section-title">Clone Voice</span>
+      </div>
+      <div class="voice-controls">
+        <div class="vc-select">
+          🌐
+          <select id="lang-select">
+            <option>English (US)</option>
+            <option>English (UK)</option>
+            <option>Spanish</option>
+            <option>French</option>
+            <option>German</option>
+            <option>Japanese</option>
+            <option>Hindi</option>
+          </select>
+        </div>
+        <div class="vc-select">
+          👤
+          <select id="gender-select">
+            <option>All Genders</option>
+            <option>Female</option>
+            <option>Male</option>
+          </select>
+        </div>
+        <div class="vc-select" style="min-width:90px;">
+          🎛
+          <select>
+            <option>Filter</option>
+            <option>Ads</option>
+            <option>Customer Service</option>
+            <option>Youth</option>
+            <option>Deep</option>
+          </select>
+        </div>
+      </div>
+      <div class="voice-cards" id="voice-cards">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Upload section (shown when tabs are active) -->
+    <div id="upload-zone" onclick="document.getElementById('file-input').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+      <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)" />
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      <div style="font-weight:600;font-size:14px;margin-bottom:4px;">Drop an image here or click to upload</div>
+      <div style="font-size:12px;color:#444466;">JPG, PNG, WebP — used as the first frame of your video</div>
+      <img id="upload-preview" src="" alt="Preview" />
+    </div>
+
+    <div style="height:20px;"></div>
+  </div><!-- /content -->
+
+  <!-- ===== BOTTOM ACTION BAR ===== -->
+  <div id="action-bar">
+    <div class="action-top">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('speech',this)">Speech Text</button>
+        <button class="tab-btn" onclick="switchTab('upload',this)">Upload Voice</button>
+        <button class="tab-btn" onclick="switchTab('noaudio',this)">No Speech</button>
+      </div>
+      <div class="action-sep"></div>
+      <div class="lang-btn">
+        🌐 <span id="lang-label">English(US) - Christopher</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div class="speed-ctrl">
+        Speed
+        <button class="speed-btn" onclick="changeSpeed(-0.1)">−</button>
+        <span id="speed-val">1.0x</span>
+        <button class="speed-btn" onclick="changeSpeed(0.1)">＋</button>
+      </div>
+      <div class="sub-ctrl">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="6" y1="10" x2="18" y2="10"/><line x1="6" y1="14" x2="14" y2="14"/></svg>
+        Subtitles
+        <div class="toggle-switch" id="sub-toggle" onclick="toggleSub()">
+          <div class="toggle-knob"></div>
+        </div>
+      </div>
+      <div class="quality-row" style="margin-left:8px;">
+        <label>Quality:</label>
+        <select class="quality-select" id="quality-select">
+          <option value="fast">Fast</option>
+          <option value="medium" selected>Medium</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="timer-disp">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="timer-disp">00:00 / 00:05</span>
+      </div>
+    </div>
+
+    <div class="script-row">
+      <textarea class="script-area" id="script-area" placeholder="Type your script here and generate your video!">Welcome to LocalVid AI! Type your script here and click Generate to create a video.</textarea>
+      <button class="btn-generate" id="btn-generate" onclick="startGeneration()">
+        <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Generate
+      </button>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ── Config ───────────────────────────────────────────────────
+const API = 'http://localhost:8000';
+
+// ── State ────────────────────────────────────────────────────
+let currentTab = 'speech';
+let currentOrientation = 'landscape';
+let speedVal = 1.0;
+let subtitlesOn = false;
+let uploadedFilename = null;
+let currentJobId = null;
+let pollInterval = null;
+let selectedVoiceId = '21m00Tcm4TlvDq8ikWAM';
+let selectedVoiceName = 'Rachel';
+
+// ── Boot ─────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  fetchDeviceInfo();
+  renderVoiceCards();
+});
+
+// ── Device info ──────────────────────────────────────────────
+async function fetchDeviceInfo() {
+  try {
+    const r = await fetch(`${API}/api/device-info`);
+    if (!r.ok) throw new Error('server offline');
+    const d = await r.json();
+    const dot = document.getElementById('device-dot');
+    document.getElementById('device-label').textContent = d.device.length > 28 ? d.device.slice(0,28)+'…' : d.device;
+    if (d.type === 'npu') { dot.className = 'device-dot npu'; }
+    else if (d.type === 'directml' || d.type === 'cuda') { dot.className = 'device-dot gpu'; }
+    else { dot.className = 'device-dot cpu'; }
+  } catch {
+    document.getElementById('device-label').textContent = 'Server offline (run server.py)';
+    document.getElementById('device-dot').style.background = '#6b7280';
+  }
+}
+
+// ── Voice cards ──────────────────────────────────────────────
+const VOICES = [
+  { name:'Libby',  id:'pMsXgVXv3BLzUgSXRplE', tags:['Ads','Customer Service','Youth'] },
+  { name:'Amber',  id:'jBpfuIE2acCO8z3wKNLl', tags:['Ads','Customer Service','Youth'] },
+  { name:'Liam',   id:'TX3LPaxmHKxFdv7VOQHJ', tags:['Ads','Customer Service','Youth'] },
+  { name:'Cora',   id:'XB0fDUnXU5powFXDhCwa', tags:['Ads','Customer Service','Youth'] },
+  { name:'Rachel', id:'21m00Tcm4TlvDq8ikWAM', tags:['Narrative','News','Youth'] },
+  { name:'Adam',   id:'pNInz6obpgDQGcFmaJgB', tags:['News','Deep','Business'] },
+  { name:'Josh',   id:'TxGEqnHWrfWFTfGW9XjX', tags:['Casual','Ads','Youth'] },
+  { name:'Bella',  id:'EXAVITQu4vr4xnSDxMaL', tags:['Warm','Narrative','Female'] },
+];
+
+function renderVoiceCards() {
+  const grid = document.getElementById('voice-cards');
+  grid.innerHTML = '';
+  VOICES.forEach((v, i) => {
+    const bars = Array.from({length: 22}, (_,j) =>
+      `<div class="vc-wave-bar" style="animation-delay:${j*0.055}s;height:${10+Math.sin(j*0.9)*8}px"></div>`
+    ).join('');
+    const card = document.createElement('div');
+    card.className = 'voice-card' + (v.id === selectedVoiceId ? ' selected' : '');
+    card.innerHTML = `
+      <div class="vc-top">
+        <div class="vc-play"><svg viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9"/></svg></div>
+        <div>
+          <div class="vc-name">${v.name}</div>
+        </div>
+        <span class="flag" style="margin-left:auto">🇺🇸</span>
+      </div>
+      <div class="vc-wave">${bars}</div>
+      <div class="vc-tags">${v.tags.map(t=>`<span class="vc-tag">${t}</span>`).join('')}</div>
+    `;
+    card.onclick = () => selectVoice(v, card);
+    grid.appendChild(card);
+  });
+}
+
+function selectVoice(voice, el) {
+  document.querySelectorAll('.voice-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedVoiceId = voice.id;
+  selectedVoiceName = voice.name;
+  document.getElementById('lang-label').textContent = `English(US) - ${voice.name}`;
+}
+
+// ── Tab switching ────────────────────────────────────────────
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const uz = document.getElementById('upload-zone');
+  const sa = document.getElementById('script-area');
+  if (tab === 'speech') {
+    uz.style.display = 'none';
+    sa.style.display = '';
+    sa.placeholder = 'Type your script here and generate your video!';
+  } else if (tab === 'upload') {
+    uz.style.display = 'block';
+    sa.style.display = 'none';
+  } else {
+    uz.style.display = 'none';
+    sa.style.display = '';
+    sa.placeholder = 'No speech — video will be generated silently.';
+  }
+}
+
+// ── Orientation ──────────────────────────────────────────────
+function setOrientation(o) {
+  currentOrientation = o;
+  document.getElementById('btn-landscape').classList.toggle('active', o === 'landscape');
+  document.getElementById('btn-portrait').classList.toggle('active', o === 'portrait');
+}
+
+// ── Speed ────────────────────────────────────────────────────
+function changeSpeed(delta) {
+  speedVal = Math.max(0.5, Math.min(2.0, +(speedVal + delta).toFixed(1)));
+  document.getElementById('speed-val').textContent = speedVal.toFixed(1) + 'x';
+}
+
+// ── Subtitles toggle ─────────────────────────────────────────
+function toggleSub() {
+  subtitlesOn = !subtitlesOn;
+  document.getElementById('sub-toggle').classList.toggle('on', subtitlesOn);
+}
+
+// ── Upload ───────────────────────────────────────────────────
+function handleDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('dragover');
+}
+function handleDragLeave() {
+  document.getElementById('upload-zone').classList.remove('dragover');
+}
+function handleDrop(e) {
+  e.preventDefault();
+  handleDragLeave();
+  const file = e.dataTransfer.files[0];
+  if (file) uploadFile(file);
+}
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) uploadFile(file);
+}
+
+async function uploadFile(file) {
+  const preview = document.getElementById('upload-preview');
+  const reader = new FileReader();
+  reader.onload = ev => { preview.src = ev.target.result; preview.style.display = 'block'; };
+  reader.readAsDataURL(file);
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/upload`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    uploadedFilename = d.filename;
+    const uz = document.getElementById('upload-zone');
+    uz.classList.add('has-image');
+    showToast('Image uploaded ✓');
+  } catch (e) {
+    showToast('Upload failed: ' + e.message, true);
+  }
+}
+
+// ── Template / avatar selection ──────────────────────────────
+const TEMPLATE_SCRIPTS = {
+  software_guide: 'Welcome to this software quick guide. In this video, I will walk you through the key features step by step.',
+  working_tips: 'Here are your working tips for today. Set clear goals every Monday morning to stay productive throughout the week.',
+  festival_news: 'Breaking news update. Here is the latest from our reporters on the ground covering the festival.',
+  product_news: 'This is a quick product news update. Stay tuned for the first line of information as it happens.',
+};
+
+function selectTemplate(el, id) {
+  document.querySelectorAll('#templates-grid .card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  if (TEMPLATE_SCRIPTS[id]) {
+    document.getElementById('script-area').value = TEMPLATE_SCRIPTS[id];
+    // Switch to speech tab
+    const tabs = document.querySelectorAll('.tab-btn');
+    switchTab('speech', tabs[0]);
+  }
+}
+
+function selectAvatar(el, id) {
+  document.querySelectorAll('#avatars-grid .card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+// ── Generate ─────────────────────────────────────────────────
+async function startGeneration() {
+  if (currentJobId && document.getElementById('status-badge').textContent === 'Running') {
+    showToast('A generation is already running.', true); return;
+  }
+
+  // For speech + upload tabs, require an uploaded image
+  if (currentTab === 'upload' && !uploadedFilename) {
+    showToast('Please upload an image first.', true); return;
+  }
+
+  const text = currentTab === 'noaudio' ? null :
+               document.getElementById('script-area').value.trim() || null;
+  const quality = document.getElementById('quality-select').value;
+
+  // If no image uploaded, show the upload section
+  if (!uploadedFilename) {
+    document.getElementById('upload-zone').style.display = 'block';
+    document.getElementById('upload-zone').scrollIntoView({ behavior: 'smooth' });
+    showToast('Please upload a source image first.', true);
+    return;
+  }
+
+  const payload = {
+    image_filename: uploadedFilename,
+    text: text,
+    voice: selectedVoiceName.toLowerCase(),
+    quality: quality,
+    seed: 42,
+    loop_audio: true,
+  };
+
+  try {
+    const r = await fetch(`${API}/api/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    currentJobId = d.job_id;
+    showStatusArea();
+    startPolling(d.job_id);
+    document.getElementById('btn-generate').disabled = true;
+  } catch (e) {
+    showToast('Failed to start: ' + e.message, true);
+  }
+}
+
+function showStatusArea() {
+  const sa = document.getElementById('status-area');
+  sa.style.display = 'block';
+  document.getElementById('video-result').style.display = 'none';
+  setStatus('pending', 0, 'Waiting to start…');
+  sa.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function startPolling(jobId) {
+  if (pollInterval) clearInterval(pollInterval);
+  // Fake progress for UX while waiting
+  let fakeProgress = 5;
+  pollInterval = setInterval(async () => {
+    try {
+      const r = await fetch(`${API}/api/job/${jobId}`);
+      if (!r.ok) return;
+      const job = await r.json();
+      if (job.status === 'running') {
+        fakeProgress = Math.min(fakeProgress + 3, 90);
+        setStatus('running', fakeProgress, job.log?.slice(-1)[0] || 'Generating…');
+      } else if (job.status === 'done') {
+        clearInterval(pollInterval);
+        setStatus('done', 100, 'Generation complete!');
+        showResult(job.result);
+        document.getElementById('btn-generate').disabled = false;
+      } else if (job.status === 'failed') {
+        clearInterval(pollInterval);
+        setStatus('failed', 100, 'Error: ' + (job.error || 'Unknown error'));
+        document.getElementById('btn-generate').disabled = false;
+      }
+    } catch {}
+  }, 2500);
+}
+
+function setStatus(status, progress, log) {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+  badge.className = 'status-badge ' + status;
+  document.getElementById('progress-fill').style.width = progress + '%';
+  document.getElementById('status-log').textContent = log;
+  if (status === 'running') {
+    document.querySelector('.status-title').textContent = 'Generating video…';
+  } else if (status === 'done') {
+    document.querySelector('.status-title').textContent = 'Video ready!';
+  } else if (status === 'failed') {
+    document.querySelector('.status-title').textContent = 'Generation failed';
+  }
+}
+
+function showResult(result) {
+  if (!result) return;
+  const vr = document.getElementById('video-result');
+  vr.style.display = 'flex';
+  if (result.final) {
+    const videoEl = document.getElementById('result-video');
+    const url = `${API}/api/output/${result.final}`;
+    videoEl.src = url;
+    const dlFinal = document.getElementById('dl-final');
+    dlFinal.href = url; dlFinal.download = result.final;
+  }
+  if (result.audio) {
+    const dlAudio = document.getElementById('dl-audio');
+    dlAudio.href = `${API}/api/output/${result.audio}`;
+    dlAudio.download = result.audio;
+    dlAudio.style.display = 'inline';
+  } else {
+    document.getElementById('dl-audio').style.display = 'none';
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+function scrollToGenerate() {
+  document.getElementById('action-bar').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('script-area').focus();
+}
+
+let toastTimeout;
+function showToast(msg, err = false) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    Object.assign(t.style, {
+      position:'fixed', bottom:'90px', right:'24px', zIndex:'9999',
+      padding:'10px 18px', borderRadius:'10px', fontSize:'13px',
+      fontWeight:'600', boxShadow:'0 4px 24px #0008', transition:'opacity .2s',
+    });
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.background = err ? '#2f1a1a' : '#1a2f1a';
+  t.style.color = err ? '#f87171' : '#4ade80';
+  t.style.border = `1px solid ${err ? '#7f1d1d' : '#14532d'}`;
+  t.style.opacity = '1';
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// Sidebar navigation (page switching placeholder)
+document.querySelectorAll('.nav-item[data-page]').forEach(item => {
+  item.addEventListener('click', () => {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+  });
+});
+
+// Nav logout
+document.getElementById('nav-logout').addEventListener('click', () => {
+  showToast('Logged out (local session).');
+});
+</script>
+</body>
+</html>
