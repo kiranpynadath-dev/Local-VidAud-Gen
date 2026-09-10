@@ -1,8 +1,8 @@
-"""Local TTS using Kokoro ONNX — free, offline, no API key required.
+"""Local TTS using Kokoro — free, offline, no API key required.
 
-Model: hexgrad/Kokoro-82M (~310 MB, MIT license)
-Quality: near-commercial, real-time on CPU
-Setup: auto-downloads on first use via huggingface_hub
+Model: hexgrad/Kokoro-82M (MIT license)
+Package: kokoro (official) — uses KPipeline, auto-downloads model + voices
+Quality: near-commercial, real-time on CPU / fast on GPU
 """
 from __future__ import annotations
 
@@ -19,27 +19,29 @@ logger = logging.getLogger(__name__)
 
 VOICES: dict[str, str] = {
     # American English — Female
-    "heart":    "af_heart",     # warm, friendly (recommended default)
-    "bella":    "af_bella",     # expressive, emotive
-    "sarah":    "af_sarah",     # professional, clear
-    "sky":      "af_sky",       # bright, energetic
-    "nicole":   "af_nicole",    # neutral, natural
+    "heart":    "af_heart",
+    "bella":    "af_bella",
+    "sarah":    "af_sarah",
+    "sky":      "af_sky",
+    "nicole":   "af_nicole",
     # American English — Male
-    "adam":     "am_adam",      # deep, authoritative
-    "michael":  "am_michael",   # casual, warm
-    "puck":     "am_puck",      # energetic, upbeat
-    "echo":     "am_echo",      # smooth, radio-style
+    "adam":     "am_adam",
+    "michael":  "am_michael",
+    "puck":     "am_puck",
+    "echo":     "am_echo",
     # British English — Female
-    "emma":     "bf_emma",      # clear, professional
-    "isabella": "bf_isabella",  # warm, British
+    "emma":     "bf_emma",
+    "isabella": "bf_isabella",
     # British English — Male
-    "george":   "bm_george",    # authoritative, British
-    "lewis":    "bm_lewis",     # casual, British
+    "george":   "bm_george",
+    "lewis":    "bm_lewis",
 }
 
-DEFAULT_VOICE  = "heart"
-MODEL_DIR      = Path("models/kokoro")
-HF_REPO        = "hexgrad/Kokoro-82M"
+DEFAULT_VOICE = "heart"
+
+def _lang_code(voice_id: str) -> str:
+    """Derive KPipeline lang_code from voice ID prefix."""
+    return "b" if voice_id.startswith("b") else "a"
 
 
 # ---------------------------------------------------------------------------
@@ -47,73 +49,38 @@ HF_REPO        = "hexgrad/Kokoro-82M"
 # ---------------------------------------------------------------------------
 
 class TTSGenerator:
-    """Local text-to-speech via Kokoro ONNX."""
+    """Local text-to-speech via the official kokoro package (KPipeline)."""
 
     def __init__(
         self,
-        model_dir: Optional[Union[str, Path]] = None,
+        model_dir: Optional[Union[str, Path]] = None,  # kept for API compat, unused
         default_voice: str = DEFAULT_VOICE,
     ) -> None:
-        self.model_dir   = Path(model_dir) if model_dir else MODEL_DIR
         self.default_voice = default_voice
-        self._kokoro = None
+        self._pipelines: dict[str, object] = {}  # lang_code → KPipeline
 
     # ------------------------------------------------------------------
-    # Setup
+    # Setup (kept for backward compat — kokoro auto-downloads on first use)
     # ------------------------------------------------------------------
-
-    def _find_repo_files(self) -> tuple[str, str]:
-        """Return (onnx_filename, voices_filename) by listing the HF repo live."""
-        from huggingface_hub import list_repo_files
-        files = list(list_repo_files(HF_REPO))
-        onnx = next((f for f in files if f.endswith(".onnx") and "kokoro" in f), None)
-        voices = next((f for f in files if "voices" in f and f.endswith(".bin")), None)
-        if not onnx:
-            raise RuntimeError(f"No .onnx model found in {HF_REPO}. Files: {files}")
-        if not voices:
-            raise RuntimeError(f"No voices.bin found in {HF_REPO}. Files: {files}")
-        return onnx, voices
 
     def download_models(self) -> None:
-        """Download Kokoro model + voice files from Hugging Face (once only)."""
-        from huggingface_hub import hf_hub_download
+        """Trigger a model download by running a short synthesis."""
+        logger.info("Pre-loading Kokoro model (first run downloads ~300 MB) …")
+        self._get_pipeline("a")
+        logger.info("Kokoro ready")
 
-        self.model_dir.mkdir(parents=True, exist_ok=True)
-        onnx_file, voices_file = self._find_repo_files()
-        logger.info("Kokoro repo files: model=%s  voices=%s", onnx_file, voices_file)
-
-        for filename, size in ((onnx_file, "~310 MB"), (voices_file, "~2 MB")):
-            dest = self.model_dir / Path(filename).name
-            if not dest.exists():
-                logger.info("Downloading %s (%s) …", filename, size)
-                hf_hub_download(
-                    repo_id=HF_REPO,
-                    filename=filename,
-                    local_dir=str(self.model_dir),
-                )
-                logger.info("Saved → %s", dest)
-            else:
-                logger.debug("Already exists: %s", dest)
-
-    def _ensure_loaded(self) -> None:
-        if self._kokoro is not None:
-            return
-        # Find whichever model file is present locally, or download
-        existing_onnx = next(self.model_dir.glob("*.onnx"), None) if self.model_dir.exists() else None
-        existing_voices = next(self.model_dir.glob("voices*.bin"), None) if self.model_dir.exists() else None
-        if not existing_onnx or not existing_voices:
-            logger.info("Kokoro model not found locally — downloading …")
-            self.download_models()
-            existing_onnx = next(self.model_dir.glob("*.onnx"), None)
-            existing_voices = next(self.model_dir.glob("voices*.bin"), None)
-        try:
-            from kokoro_onnx import Kokoro
-            self._kokoro = Kokoro(str(existing_onnx), str(existing_voices))
-            logger.info("Kokoro TTS loaded: %s", existing_onnx.name)
-        except ImportError as exc:
-            raise RuntimeError(
-                "kokoro-onnx not installed. Run: pip install kokoro-onnx soundfile"
-            ) from exc
+    def _get_pipeline(self, lang_code: str):
+        if lang_code not in self._pipelines:
+            try:
+                from kokoro import KPipeline
+            except ImportError as exc:
+                raise RuntimeError(
+                    "kokoro not installed. Run: pip install kokoro"
+                ) from exc
+            logger.info("Loading KPipeline lang_code=%s …", lang_code)
+            self._pipelines[lang_code] = KPipeline(lang_code=lang_code)
+            logger.info("KPipeline(%s) ready", lang_code)
+        return self._pipelines[lang_code]
 
     # ------------------------------------------------------------------
     # Public API
@@ -125,38 +92,21 @@ class TTSGenerator:
         output_path: Union[str, Path],
         voice: str = DEFAULT_VOICE,
         speed: float = 1.0,
-        lang: str = "en-us",
+        lang: str = "en-us",  # kept for compat — derived from voice ID
     ) -> Path:
-        """Synthesise text → MP3/WAV file.
-
-        Args:
-            voice: Friendly name (see VOICES) or raw Kokoro voice ID like 'af_heart'.
-            speed: Playback speed multiplier (0.5–2.0).
-            lang:  Language code — 'en-us', 'en-gb', etc.
-
-        Returns:
-            Path to the written audio file.
-        """
-        self._ensure_loaded()
+        import numpy as np
+        voice_id = VOICES.get(voice.lower(), voice)
+        pipeline  = self._get_pipeline(_lang_code(voice_id))
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        voice_id = VOICES.get(voice.lower(), voice)   # accept name or raw ID
         logger.info("TTS: %d chars, voice=%s, speed=%.1f", len(text), voice_id, speed)
+        chunks = []
+        for _, _, audio in pipeline(text, voice=voice_id, speed=speed):
+            chunks.append(audio)
 
-        samples, sample_rate = self._kokoro.create(
-            text, voice=voice_id, speed=speed, lang=lang
-        )
-
-        # Write WAV then convert to MP3 with ffmpeg (or keep WAV as fallback)
-        if output_path.suffix.lower() == ".mp3":
-            wav_tmp = output_path.with_suffix(".wav")
-            _write_wav(wav_tmp, samples, sample_rate)
-            _wav_to_mp3(wav_tmp, output_path)
-            wav_tmp.unlink(missing_ok=True)
-        else:
-            _write_wav(output_path, samples, sample_rate)
-
+        combined = np.concatenate(chunks) if chunks else np.zeros(24000, dtype=np.float32)
+        _save_audio(combined, 24000, output_path)
         logger.info("TTS saved → %s", output_path)
         return output_path
 
@@ -167,51 +117,21 @@ class TTSGenerator:
         voice: str = DEFAULT_VOICE,
         speed: float = 1.0,
         lang: str = "en-us",
-        chunk_size: int = 300,
+        chunk_size: int = 300,  # kept for compat — KPipeline handles splitting
     ) -> Path:
-        """Split long text into chunks and concatenate — avoids max-token limits."""
-        import numpy as np
-
-        self._ensure_loaded()
-        voice_id = VOICES.get(voice.lower(), voice)
-        chunks   = _split_sentences(text, chunk_size)
-        all_samples: list = []
-        rate = 24000  # Kokoro default
-
-        for i, chunk in enumerate(chunks):
-            if not chunk.strip():
-                continue
-            logger.debug("Chunk %d/%d: %d chars", i + 1, len(chunks), len(chunk))
-            samples, rate = self._kokoro.create(
-                chunk, voice=voice_id, speed=speed, lang=lang
-            )
-            all_samples.append(samples)
-
-        combined = np.concatenate(all_samples) if all_samples else np.zeros(rate, dtype=np.float32)
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        if output_path.suffix.lower() == ".mp3":
-            wav_tmp = output_path.with_suffix(".wav")
-            _write_wav(wav_tmp, combined, rate)
-            _wav_to_mp3(wav_tmp, output_path)
-            wav_tmp.unlink(missing_ok=True)
-        else:
-            _write_wav(output_path, combined, rate)
-
-        logger.info("Chunked TTS saved → %s", output_path)
-        return output_path
+        # KPipeline handles long text natively; just call generate_speech
+        return self.generate_speech(text, output_path, voice=voice, speed=speed)
 
     def list_voices(self) -> list[dict]:
         rows = []
         for name, vid in VOICES.items():
-            lang = "British" if vid.startswith("b") else "American"
+            lang   = "British" if vid.startswith("b") else "American"
             gender = "Female" if "_f" in vid else "Male"
             rows.append({"id": vid, "name": name.capitalize(), "lang": lang, "gender": gender})
         return rows
 
     def unload(self) -> None:
-        self._kokoro = None
+        self._pipelines.clear()
         logger.info("Kokoro TTS unloaded")
 
 
@@ -219,12 +139,21 @@ class TTSGenerator:
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _save_audio(samples, sample_rate: int, output_path: Path) -> None:
+    if output_path.suffix.lower() == ".mp3":
+        wav_tmp = output_path.with_suffix(".wav")
+        _write_wav(wav_tmp, samples, sample_rate)
+        _wav_to_mp3(wav_tmp, output_path)
+        wav_tmp.unlink(missing_ok=True)
+    else:
+        _write_wav(output_path, samples, sample_rate)
+
+
 def _write_wav(path: Path, samples, sample_rate: int) -> None:
     try:
         import soundfile as sf
         sf.write(str(path), samples, sample_rate)
     except ImportError:
-        # scipy fallback
         from scipy.io import wavfile
         import numpy as np
         wavfile.write(str(path), sample_rate, (samples * 32767).astype(np.int16))
@@ -236,14 +165,12 @@ def _wav_to_mp3(wav: Path, mp3: Path) -> None:
         capture_output=True, text=True,
     )
     if result.returncode != 0:
-        # ffmpeg not available — keep WAV with .mp3 extension as last resort
         import shutil
         shutil.copy(wav, mp3)
-        logger.warning("ffmpeg unavailable; audio saved as uncompressed WAV at %s", mp3)
+        logger.warning("ffmpeg unavailable; audio saved as WAV at %s", mp3)
 
 
 def _split_sentences(text: str, max_chars: int) -> list[str]:
-    """Split on sentence boundaries to stay under Kokoro's token limit."""
     import re
     sentences = re.split(r'(?<=[.!?])\s+', text.strip())
     chunks, current = [], ""

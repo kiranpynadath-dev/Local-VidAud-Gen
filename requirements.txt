@@ -33,7 +33,7 @@ onnx>=1.16.0
 olive-ai==0.5.0
 
 # ----- Local TTS (Kokoro — free, no API key) -----
-kokoro-onnx==0.4.0      # Kokoro-82M ONNX inference
+kokoro>=0.9.2            # official package — auto-downloads model on first use
 soundfile==0.12.1        # WAV file writing
 scipy==1.13.0            # fallback WAV writer if soundfile unavailable
 
