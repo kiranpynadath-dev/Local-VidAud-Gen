@@ -42,16 +42,19 @@ def _load_chatterbox(device: str):
     return _chatterbox
 
 
+def _openvoice_available() -> bool:
+    try:
+        import openvoice  # noqa: F401
+        return True
+    except ImportError:
+        return False
+
+
 def _load_openvoice(device: str):
     global _ov_converter
     if _ov_converter is not None:
         return _ov_converter
-    try:
-        from openvoice.api import ToneColorConverter
-    except ImportError:
-        raise RuntimeError(
-            "openvoice not installed. Run: pip install git+https://github.com/myshell-ai/OpenVoice.git"
-        )
+    from openvoice.api import ToneColorConverter
     ckpt = Path("checkpoints_v2/converter")
     if not ckpt.exists():
         logger.info("Downloading OpenVoice v2 checkpoints (~200 MB)…")
@@ -127,19 +130,25 @@ def _clone_english(text, reference_audio, output_path, device) -> Path:
 
 
 def _clone_indian(text, reference_audio, output_path, lang, device) -> Path:
-    """edge-tts base + OpenVoice v2 tone color conversion."""
-    from openvoice import se_extractor
-
+    """edge-tts base + OpenVoice v2 tone color conversion.
+    Falls back to plain edge-tts if OpenVoice is not installed."""
     base_voice = _INDIAN_BASE_VOICES.get(lang, "hi-IN-SwaraNeural")
     base_mp3 = output_path.with_name(output_path.stem + "_base.mp3")
-    base_wav = output_path.with_name(output_path.stem + "_base.wav")
 
     # Step 1: generate base audio in target language
     _edge_tts_sync(text, base_voice, base_mp3)
+
+    if not _openvoice_available():
+        logger.warning("OpenVoice not installed — returning plain edge-tts audio (no voice cloning)")
+        return _to_mp3_if_needed(base_mp3.with_suffix(".wav") if base_mp3.suffix != ".mp3" else base_mp3,
+                                 output_path) if base_mp3 != output_path else base_mp3.rename(output_path) or output_path
+
+    from openvoice import se_extractor
+    base_wav = output_path.with_name(output_path.stem + "_base.wav")
     subprocess.run(["ffmpeg", "-y", "-i", str(base_mp3), str(base_wav)],
                    capture_output=True, check=True)
 
-    # Step 2: convert tone to reference speaker
+    # Step 2: apply reference voice tone
     converter = _load_openvoice(device)
     ref_wav = _to_wav(reference_audio)
 
@@ -155,7 +164,6 @@ def _clone_indian(text, reference_audio, output_path, lang, device) -> Path:
         tau=0.3,
     )
 
-    # Cleanup temps
     for f in (base_mp3, base_wav):
         f.unlink(missing_ok=True)
     if ref_wav != reference_audio:
