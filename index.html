@@ -365,6 +365,100 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none;
 }
 
+/* ── Mode bar ────────────────────────────────────────────────── */
+#mode-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 24px; background: #0f0f22; border-bottom: 1px solid #1e1e38;
+  flex-shrink: 0;
+}
+.mode-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border-radius: 8px; border: 1px solid #2a2a44;
+  background: #1a1a2e; color: #8888aa; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+}
+.mode-tab:hover { border-color: #5b21b6; color: #cccce0; }
+.mode-tab.active { background: linear-gradient(90deg,#5b21b6,#7c3aed); color: #fff; border-color: transparent; }
+#mode-hint { margin-left: auto; font-size: 11px; color: #555570; font-style: italic; }
+
+/* ── Text-to-video panel ─────────────────────────────────────── */
+#t2v-panel { display: none; padding: 20px 0; }
+.t2v-prompt-label { font-size: 12px; font-weight: 700; color: #aaaacc; margin-bottom: 8px; }
+.t2v-prompt {
+  width: 100%; min-height: 80px; background: #13132a;
+  border: 1px solid #2a2a44; border-radius: 10px;
+  color: #e2e2f0; font-size: 14px; padding: 14px;
+  resize: vertical; outline: none; line-height: 1.6; font-family: inherit;
+  margin-bottom: 10px;
+}
+.t2v-prompt:focus { border-color: #7c3aed; }
+.t2v-prompt::placeholder { color: #444466; }
+.t2v-neg-prompt {
+  width: 100%; background: #13132a; border: 1px solid #1e1e38;
+  border-radius: 8px; color: #8888aa; font-size: 12px; padding: 10px 12px;
+  outline: none; font-family: inherit; margin-bottom: 14px;
+}
+.t2v-neg-prompt:focus { border-color: #3b2f6b; }
+.t2v-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.t2v-voice-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+.t2v-select {
+  background: #1a1a2e; border: 1px solid #2a2a44; color: #cccce0;
+  border-radius: 8px; padding: 8px 12px; font-size: 12px; outline: none;
+}
+.btn-t2v-gen {
+  background: linear-gradient(135deg,#7c3aed,#a855f7);
+  color: #fff; font-size: 13px; font-weight: 700; border: none;
+  border-radius: 10px; padding: 11px 22px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; margin-left: auto;
+}
+.btn-t2v-gen:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ── Edit-video panel ────────────────────────────────────────── */
+#edit-panel { display: none; padding: 20px 0; }
+.edit-upload-zone {
+  border: 2px dashed #2a2a44; border-radius: 12px;
+  padding: 24px; text-align: center; cursor: pointer;
+  color: #5555aa; font-size: 13px; transition: border-color .15s;
+  margin-bottom: 14px;
+}
+.edit-upload-zone:hover { border-color: #7c3aed; }
+.edit-upload-zone.has-video { border-color: #7c3aed44; border-style: solid; }
+.edit-prompt {
+  width: 100%; min-height: 60px; background: #13132a;
+  border: 1px solid #2a2a44; border-radius: 10px;
+  color: #e2e2f0; font-size: 13px; padding: 12px 14px;
+  resize: none; outline: none; font-family: inherit; margin-bottom: 12px;
+}
+.edit-prompt:focus { border-color: #7c3aed; }
+.edit-prompt::placeholder { color: #444466; }
+.edit-controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.edit-label { font-size: 11px; color: #8888aa; }
+.strength-slider {
+  -webkit-appearance: none; height: 4px; background: #2a2a44;
+  border-radius: 2px; outline: none; width: 140px;
+}
+.strength-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px;
+  border-radius: 50%; background: #7c3aed; cursor: pointer;
+}
+.strength-val { font-size: 12px; color: #a78bfa; min-width: 30px; }
+.btn-edit-gen {
+  background: linear-gradient(135deg,#059669,#10b981);
+  color: #fff; font-size: 13px; font-weight: 700; border: none;
+  border-radius: 10px; padding: 11px 22px; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; margin-left: auto;
+}
+.btn-edit-gen:disabled { opacity: .5; cursor: not-allowed; }
+.mode-pill {
+  display: flex; background: #1a1a2e; border-radius: 8px; padding: 3px;
+}
+.mode-pill-btn {
+  padding: 5px 12px; border-radius: 6px; font-size: 11px; font-weight: 600;
+  border: none; background: none; color: #8888aa; cursor: pointer;
+}
+.mode-pill-btn.active { background: #7c3aed; color: #fff; }
+.frames-note { font-size: 10px; color: #555570; margin-top: 6px; }
+
 /* Scrollbar globally */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
@@ -439,6 +533,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <button class="btn-create" onclick="scrollToGenerate()">＋ Create Video</button>
       <div class="avatar-circle"></div>
     </div>
+  </div>
+
+  <!-- Mode switcher -->
+  <div id="mode-bar">
+    <button class="mode-tab active" onclick="switchMode('img2video',this)">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      Image → Video
+    </button>
+    <button class="mode-tab" onclick="switchMode('text2video',this)">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Text → Video
+    </button>
+    <button class="mode-tab" onclick="switchMode('editvideo',this)">
+      <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+      Edit Video
+    </button>
+    <span id="mode-hint"></span>
   </div>
 
   <!-- Status / progress area -->
@@ -617,6 +728,114 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       <img id="upload-preview" src="" alt="Preview" />
     </div>
 
+    <!-- ── Text-to-Video panel ── -->
+    <div id="t2v-panel">
+      <div class="section-header" style="margin-bottom:14px;">
+        <span class="section-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Text → Video Generation
+        </span>
+        <span style="font-size:11px;color:#555570;">Powered by ModelScope / CogVideoX</span>
+      </div>
+
+      <div class="t2v-prompt-label">Video Prompt <span style="color:#555570;font-weight:400;">(describe what you want to see)</span></div>
+      <textarea class="t2v-prompt" id="t2v-prompt" placeholder="A serene mountain lake at sunrise, mist rising over still water, golden light filtering through pine trees…"></textarea>
+
+      <div class="t2v-prompt-label" style="margin-bottom:6px;">Negative Prompt <span style="color:#555570;font-weight:400;">(optional — what to avoid)</span></div>
+      <input class="t2v-neg-prompt" id="t2v-neg-prompt" type="text" value="blurry, low quality, distorted, watermark" />
+
+      <div class="t2v-prompt-label" style="margin-top:14px;margin-bottom:8px;">Voiceover Script <span style="color:#555570;font-weight:400;">(optional — leave blank for silent video)</span></div>
+      <textarea class="t2v-prompt" id="t2v-script" style="min-height:56px;" placeholder="Add a voiceover narration here, or leave blank for a silent video…"></textarea>
+
+      <div class="t2v-row" style="margin-top:14px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:#8888aa;">Voice</span>
+          <select class="t2v-select" id="t2v-voice">
+            <!-- populated by JS -->
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:#8888aa;">Speed</span>
+          <select class="t2v-select" id="t2v-speed">
+            <option value="0.75">0.75×</option>
+            <option value="1.0" selected>1.0×</option>
+            <option value="1.25">1.25×</option>
+            <option value="1.5">1.5×</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:12px;color:#8888aa;">Quality</span>
+          <select class="t2v-select" id="t2v-quality">
+            <option value="fast">Fast (256×256, ~45s)</option>
+            <option value="medium" selected>Medium (256×256, ~90s)</option>
+            <option value="high">High (CogVideoX, ~5min)</option>
+          </select>
+        </div>
+        <button class="btn-t2v-gen" id="btn-t2v-gen" onclick="startT2VGeneration()">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Generate Video
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Edit Video panel ── -->
+    <div id="edit-panel">
+      <div class="section-header" style="margin-bottom:14px;">
+        <span class="section-title">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+          Edit Video with AI
+        </span>
+        <span style="font-size:11px;color:#555570;">SDEdit img2img or InstructPix2Pix</span>
+      </div>
+
+      <input type="file" id="edit-video-input" accept="video/*" style="display:none" onchange="handleEditVideoSelect(event)" />
+      <div class="edit-upload-zone" id="edit-upload-zone" onclick="document.getElementById('edit-video-input').click()">
+        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:10px;"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px;" id="edit-upload-label">Drop a video here or click to upload</div>
+        <div style="font-size:12px;color:#444466;">MP4, MOV, AVI, WebM</div>
+      </div>
+
+      <div class="t2v-prompt-label" style="margin-bottom:6px;">Edit Prompt <span style="color:#555570;font-weight:400;">(describe the change you want)</span></div>
+      <textarea class="edit-prompt" id="edit-prompt" placeholder="Make the sky a stormy purple, add dramatic lightning in the background…"></textarea>
+
+      <div class="edit-controls">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="edit-label">Mode</span>
+          <div class="mode-pill">
+            <button class="mode-pill-btn active" id="pill-sdedit" onclick="selectEditMode('sdedit',this)">SDEdit</button>
+            <button class="mode-pill-btn" id="pill-instruct" onclick="selectEditMode('instruct',this)">InstructP2P</button>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:16px;">
+          <span class="edit-label">Strength</span>
+          <input type="range" class="strength-slider" id="strength-slider" min="0.1" max="0.95" step="0.05" value="0.55" oninput="document.getElementById('strength-val').textContent=parseFloat(this.value).toFixed(2)" />
+          <span class="strength-val" id="strength-val">0.55</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="edit-label">Max frames</span>
+          <select class="t2v-select" id="edit-max-frames">
+            <option value="16">16 (fastest)</option>
+            <option value="30" selected>30</option>
+            <option value="60">60</option>
+            <option value="">All</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="edit-label">Steps</span>
+          <select class="t2v-select" id="edit-steps">
+            <option value="10">10 (fast)</option>
+            <option value="20" selected>20</option>
+            <option value="30">30 (quality)</option>
+          </select>
+        </div>
+        <button class="btn-edit-gen" id="btn-edit-gen" onclick="startEditGeneration()" style="margin-left:auto;">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+          Apply Edit
+        </button>
+      </div>
+      <div class="frames-note">SDEdit: broad style/scene changes. InstructPix2Pix: surgical instruction edits ("replace the car with a bicycle").</div>
+    </div>
+
     <div style="height:20px;"></div>
   </div><!-- /content -->
 
@@ -678,10 +897,13 @@ const API = window.location.protocol === 'file:' ? 'http://localhost:8000' : '';
 
 // ── State ────────────────────────────────────────────────────
 let currentTab = 'speech';
+let currentMode = 'img2video';
 let currentOrientation = 'landscape';
 let speedVal = 1.0;
 let subtitlesOn = false;
 let uploadedFilename = null;
+let uploadedVideoFilename = null;
+let editMode = 'sdedit';
 let currentJobId = null;
 let pollInterval = null;
 let selectedVoiceId   = 'heart';
@@ -691,6 +913,7 @@ let selectedVoiceName = 'Heart';
 document.addEventListener('DOMContentLoaded', () => {
   checkServerHealth();
   renderVoiceCards();
+  populateT2VVoiceSelect();
 });
 
 async function checkServerHealth() {
@@ -924,7 +1147,7 @@ async function startGeneration() {
     if (!r.ok) throw new Error(await r.text());
     const d = await r.json();
     currentJobId = d.job_id;
-    showStatusArea();
+    showStatusArea('Generating video from image…');
     startPolling(d.job_id);
     document.getElementById('btn-generate').disabled = true;
   } catch (e) {
@@ -932,17 +1155,17 @@ async function startGeneration() {
   }
 }
 
-function showStatusArea() {
+function showStatusArea(title) {
   const sa = document.getElementById('status-area');
   sa.style.display = 'block';
   document.getElementById('video-result').style.display = 'none';
+  document.querySelector('.status-title').textContent = title || 'Generating video…';
   setStatus('pending', 0, 'Waiting to start…');
   sa.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function startPolling(jobId) {
+function startPolling(jobId, onDone) {
   if (pollInterval) clearInterval(pollInterval);
-  // Fake progress for UX while waiting
   let fakeProgress = 5;
   pollInterval = setInterval(async () => {
     try {
@@ -957,10 +1180,12 @@ function startPolling(jobId) {
         setStatus('done', 100, 'Generation complete!');
         showResult(job.result);
         document.getElementById('btn-generate').disabled = false;
+        if (onDone) onDone();
       } else if (job.status === 'failed') {
         clearInterval(pollInterval);
         setStatus('failed', 100, 'Error: ' + (job.error || 'Unknown error'));
         document.getElementById('btn-generate').disabled = false;
+        if (onDone) onDone();
       }
     } catch {}
   }, 2500);
@@ -1028,6 +1253,138 @@ function showToast(msg, err = false) {
   t.style.opacity = '1';
   clearTimeout(toastTimeout);
   toastTimeout = setTimeout(() => { t.style.opacity = '0'; }, 3000);
+}
+
+// ── Mode switching ───────────────────────────────────────────
+function switchMode(mode, btn) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const isImg = mode === 'img2video';
+  const isT2V = mode === 'text2video';
+  const isEdit = mode === 'editvideo';
+
+  document.querySelector('.two-col').style.display       = isImg ? '' : 'none';
+  document.getElementById('clone-voice-section').style.display = isImg ? '' : 'none';
+  document.getElementById('upload-zone').style.display   = isImg ? 'none' : 'none';
+  document.getElementById('action-bar').style.display    = isImg ? '' : 'none';
+  document.getElementById('t2v-panel').style.display     = isT2V ? 'block' : 'none';
+  document.getElementById('edit-panel').style.display    = isEdit ? 'block' : 'none';
+
+  const hints = {
+    img2video: 'Upload an image and click Generate',
+    text2video: 'Describe a scene — AI generates the video from text',
+    editvideo: 'Upload a video and describe what to change',
+  };
+  document.getElementById('mode-hint').textContent = hints[mode] || '';
+}
+
+// ── Populate T2V voice selector ──────────────────────────────
+function populateT2VVoiceSelect() {
+  const sel = document.getElementById('t2v-voice');
+  if (!sel) return;
+  VOICES.forEach(v => {
+    const opt = document.createElement('option');
+    opt.value = v.id;
+    opt.textContent = v.name;
+    if (v.id === 'heart') opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+// ── Edit mode pill ───────────────────────────────────────────
+function selectEditMode(mode, btn) {
+  editMode = mode;
+  document.querySelectorAll('.mode-pill-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ── Edit video upload ────────────────────────────────────────
+async function handleEditVideoSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const r = await fetch(`${API}/api/upload-video`, { method: 'POST', body: fd });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    uploadedVideoFilename = d.filename;
+    document.getElementById('edit-upload-zone').classList.add('has-video');
+    document.getElementById('edit-upload-label').textContent = `✓ ${file.name}`;
+    showToast('Video uploaded ✓');
+  } catch (err) {
+    showToast('Video upload failed: ' + err.message, true);
+  }
+}
+
+// ── Text-to-Video generation ─────────────────────────────────
+async function startT2VGeneration() {
+  const prompt = document.getElementById('t2v-prompt').value.trim();
+  if (!prompt) { showToast('Enter a video prompt first.', true); return; }
+
+  const payload = {
+    prompt,
+    negative_prompt: document.getElementById('t2v-neg-prompt').value.trim() || 'blurry, low quality, distorted, watermark',
+    text: document.getElementById('t2v-script').value.trim() || null,
+    voice: document.getElementById('t2v-voice').value,
+    speed: parseFloat(document.getElementById('t2v-speed').value),
+    quality: document.getElementById('t2v-quality').value,
+    seed: 42,
+    loop_audio: true,
+  };
+
+  try {
+    const r = await fetch(`${API}/api/generate-text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    currentJobId = d.job_id;
+    document.getElementById('btn-t2v-gen').disabled = true;
+    showStatusArea('Generating text-to-video…');
+    startPolling(d.job_id, () => { document.getElementById('btn-t2v-gen').disabled = false; });
+  } catch (err) {
+    showToast('Failed to start: ' + err.message, true);
+  }
+}
+
+// ── Edit Video generation ────────────────────────────────────
+async function startEditGeneration() {
+  if (!uploadedVideoFilename) { showToast('Upload a video first.', true); return; }
+  const prompt = document.getElementById('edit-prompt').value.trim();
+  if (!prompt) { showToast('Enter an edit prompt.', true); return; }
+
+  const maxFramesRaw = document.getElementById('edit-max-frames').value;
+  const payload = {
+    video_filename: uploadedVideoFilename,
+    prompt,
+    negative_prompt: 'blurry, low quality, artifacts',
+    mode: editMode,
+    strength: parseFloat(document.getElementById('strength-slider').value),
+    steps: parseInt(document.getElementById('edit-steps').value),
+    max_frames: maxFramesRaw ? parseInt(maxFramesRaw) : null,
+    seed: 42,
+  };
+
+  try {
+    const r = await fetch(`${API}/api/edit-video`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    const d = await r.json();
+    currentJobId = d.job_id;
+    document.getElementById('btn-edit-gen').disabled = true;
+    showStatusArea('Applying video edit…');
+    startPolling(d.job_id, () => { document.getElementById('btn-edit-gen').disabled = false; });
+  } catch (err) {
+    showToast('Failed to start: ' + err.message, true);
+  }
 }
 
 // Sidebar navigation (page switching placeholder)

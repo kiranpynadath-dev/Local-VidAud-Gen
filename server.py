@@ -33,7 +33,10 @@ from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+import logging
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # App setup
@@ -141,6 +144,134 @@ async def api_generate(req: GenerateRequest):
     _jobs[job_id] = {"status": "pending", "progress": 0, "result": None, "error": None, "log": []}
     asyncio.create_task(_run_generation(job_id, req, image_path))
     return {"job_id": job_id}
+
+
+# ── Text-to-video ─────────────────────────────────────────────────────────
+
+class TextToVideoRequest(BaseModel):
+    prompt: str
+    negative_prompt: str = "blurry, low quality, distorted, watermark"
+    text: Optional[str] = None          # TTS script (voiceover)
+    voice: str = "heart"
+    speed: float = 1.0
+    quality: str = "medium"
+    seed: Optional[int] = None
+    loop_audio: bool = True
+
+
+@app.post("/api/generate-text")
+async def api_generate_text(req: TextToVideoRequest):
+    job_id = uuid.uuid4().hex
+    _jobs[job_id] = {"status": "pending", "progress": 0, "result": None, "error": None, "log": []}
+    asyncio.create_task(_run_t2v(job_id, req))
+    return {"job_id": job_id}
+
+
+async def _run_t2v(job_id: str, req: TextToVideoRequest) -> None:
+    _jobs[job_id]["status"] = "running"
+    _jobs[job_id]["log"].append("Starting text-to-video generation …")
+
+    def _gen():
+        from src.generator import VideoAudioGenerator
+        gen = VideoAudioGenerator(quality=req.quality, output_dir=str(OUTPUT_DIR))
+        result = gen.generate_from_text(
+            prompt=req.prompt,
+            negative_prompt=req.negative_prompt,
+            text=req.text or None,
+            voice=req.voice,
+            speed=req.speed,
+            seed=req.seed,
+            loop_audio=req.loop_audio,
+            filename_prefix=job_id,
+        )
+        gen.unload()
+        return result
+
+    loop = asyncio.get_event_loop()
+    try:
+        result = await loop.run_in_executor(_executor, _gen)
+        _jobs[job_id].update({
+            "status": "done", "progress": 100,
+            "result": {
+                "video": result["video"].name if result.get("video") else None,
+                "audio": result["audio"].name if result.get("audio") else None,
+                "final": result["final"].name if result.get("final") else None,
+            },
+        })
+    except Exception as exc:
+        _jobs[job_id].update({"status": "failed", "error": str(exc)})
+        logger.error("T2V job %s failed: %s", job_id, exc)
+
+
+# ── Video editing ──────────────────────────────────────────────────────────
+
+@app.post("/api/upload-video")
+async def api_upload_video(file: UploadFile = File(...)):
+    allowed = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
+    ext = Path(file.filename or "video").suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported video type: {ext}")
+    filename = f"{uuid.uuid4().hex}{ext}"
+    dest = UPLOAD_DIR / filename
+    with open(dest, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"filename": filename}
+
+
+class EditVideoRequest(BaseModel):
+    video_filename: str
+    prompt: str
+    negative_prompt: str = "blurry, low quality, artifacts"
+    mode: str = "sdedit"        # "sdedit" or "instruct"
+    strength: float = 0.55
+    steps: int = 20
+    max_frames: Optional[int] = 30   # limit for speed; None = full video
+    seed: int = 42
+
+
+@app.post("/api/edit-video")
+async def api_edit_video(req: EditVideoRequest):
+    video_path = UPLOAD_DIR / req.video_filename
+    if not video_path.exists():
+        raise HTTPException(status_code=400, detail=f"Video not found: {req.video_filename}")
+
+    job_id = uuid.uuid4().hex
+    _jobs[job_id] = {"status": "pending", "progress": 0, "result": None, "error": None, "log": []}
+    asyncio.create_task(_run_edit(job_id, req, video_path))
+    return {"job_id": job_id}
+
+
+async def _run_edit(job_id: str, req: EditVideoRequest, video_path: Path) -> None:
+    _jobs[job_id]["status"] = "running"
+    _jobs[job_id]["log"].append(f"Editing video (mode={req.mode}) …")
+
+    def _edit():
+        from src.generator import VideoAudioGenerator
+        gen = VideoAudioGenerator(quality="medium", output_dir=str(OUTPUT_DIR))
+        out = gen.edit_video(
+            video_path=video_path,
+            prompt=req.prompt,
+            mode=req.mode,
+            negative_prompt=req.negative_prompt,
+            strength=req.strength,
+            steps=req.steps,
+            max_frames=req.max_frames,
+            seed=req.seed,
+            filename_prefix=job_id,
+        )
+        gen.unload()
+        return out
+
+    loop = asyncio.get_event_loop()
+    try:
+        out_path = await loop.run_in_executor(_executor, _edit)
+        _jobs[job_id].update({
+            "status": "done", "progress": 100,
+            "result": {"final": out_path.name, "video": out_path.name, "audio": None},
+        })
+    except Exception as exc:
+        _jobs[job_id].update({"status": "failed", "error": str(exc)})
+        logger.error("Edit job %s failed: %s", job_id, exc)
 
 
 @app.get("/api/job/{job_id}")
